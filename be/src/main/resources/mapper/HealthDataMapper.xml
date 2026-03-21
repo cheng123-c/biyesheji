@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.health.assessment.mapper.HealthDataMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="healthDataResultMap" type="com.health.assessment.entity.HealthData">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="data_type" property="dataType"/>
+        <result column="data_value" property="dataValue"/>
+        <result column="unit" property="unit"/>
+        <result column="data_source" property="dataSource"/>
+        <result column="device_id" property="deviceId"/>
+        <result column="collected_at" property="collectedAt"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 统计结果映射 -->
+    <resultMap id="statisticsResultMap" type="com.health.assessment.mapper.HealthDataMapper$HealthDataStatistics">
+        <result column="data_type" property="dataType"/>
+        <result column="count" property="count"/>
+        <result column="min_value" property="minValue"/>
+        <result column="max_value" property="maxValue"/>
+        <result column="avg_value" property="avgValue"/>
+    </resultMap>
+
+    <!-- 查询用户指定时间范围内的数据 -->
+    <select id="selectByUserIdAndTimeRange" resultMap="healthDataResultMap">
+        SELECT * FROM t_health_data
+        WHERE user_id = #{userId}
+        AND collected_at >= #{startTime}
+        AND collected_at &lt;= #{endTime}
+        ORDER BY collected_at DESC
+    </select>
+
+    <!-- 复杂条件查询健康数据 -->
+    <select id="selectByUserIdAndType" resultMap="healthDataResultMap">
+        SELECT * FROM t_health_data
+        WHERE user_id = #{userId}
+        AND data_type = #{dataType}
+        AND collected_at >= #{startTime}
+        AND collected_at &lt;= #{endTime}
+        ORDER BY collected_at DESC
+    </select>
+
+    <!-- 查询用户今天的特定类型数据 -->
+    <select id="selectTodayData" resultMap="healthDataResultMap">
+        SELECT * FROM t_health_data
+        WHERE user_id = #{userId}
+        AND data_type = #{dataType}
+        AND DATE(collected_at) = #{date}
+        ORDER BY collected_at DESC
+    </select>
+
+    <!-- 查询所有数据类型的最新值 -->
+    <select id="selectLatestAllTypes" resultMap="healthDataResultMap">
+        SELECT * FROM t_health_data
+        WHERE user_id = #{userId}
+        AND collected_at = (
+            SELECT MAX(collected_at) FROM t_health_data thd2
+            WHERE thd2.user_id = #{userId}
+            AND thd2.data_type = t_health_data.data_type
+        )
+    </select>
+
+    <!-- 批量插入健康数据 -->
+    <insert id="batchInsert">
+        INSERT INTO t_health_data(user_id, data_type, data_value, unit, data_source, device_id, collected_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.dataType}, #{item.dataValue}, #{item.unit},
+             #{item.dataSource}, #{item.deviceId}, #{item.collectedAt})
+        </foreach>
+    </insert>
+
+    <!-- 删除指定日期之前的数据 -->
+    <delete id="deleteBeforeDate">
+        DELETE FROM t_health_data
+        WHERE user_id = #{userId}
+        AND collected_at &lt; #{beforeDate}
+    </delete>
+
+    <!-- 获取数据统计信息 -->
+    <select id="getStatistics" resultMap="statisticsResultMap">
+        SELECT
+            data_type,
+            COUNT(*) as count,
+            MIN(data_value) as min_value,
+            MAX(data_value) as max_value,
+            AVG(data_value) as avg_value
+        FROM t_health_data
+        WHERE user_id = #{userId}
+        GROUP BY data_type
+    </select>
+
+</mapper>
+

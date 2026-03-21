@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+    <!-- 全局配置 -->
+    <settings>
+        <!-- 是否启用驼峰命名自动映射 -->
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+        <!-- 是否启用缓存 -->
+        <setting name="cacheEnabled" value="true"/>
+        <!-- 是否启用延迟加载 -->
+        <setting name="lazyLoadingEnabled" value="true"/>
+        <!-- 是否主动加载关联对象 -->
+        <setting name="aggressiveLazyLoading" value="false"/>
+        <!-- 是否允许多结果集返回 -->
+        <setting name="multipleResultSetsEnabled" value="true"/>
+        <!-- 是否允许使用生成的主键 -->
+        <setting name="useGeneratedKeys" value="true"/>
+        <!-- 默认执行器类型 -->
+        <setting name="defaultExecutorType" value="SIMPLE"/>
+        <!-- 无返回结果的超时时间 -->
+        <setting name="defaultStatementTimeout" value="25000"/>
+        <!-- 返回集合时，是否返回集合或NULL -->
+        <setting name="returnInstanceForEmptyRow" value="false"/>
+    </settings>
+
+    <!-- 类型别名 -->
+    <typeAliases>
+        <package name="com.health.assessment.entity"/>
+    </typeAliases>
+
+    <!-- 类型处理器 -->
+    <typeHandlers>
+        <!-- 自定义类型处理器可在此添加 -->
+    </typeHandlers>
+
+</configuration>
+
