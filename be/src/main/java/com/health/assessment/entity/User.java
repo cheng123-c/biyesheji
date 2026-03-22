@@ -1,5 +1,6 @@
 package com.health.assessment.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -40,8 +41,9 @@ public class User implements Serializable {
     private String email;
 
     /**
-     * 密码哈希值
+     * 密码哈希值（序列化时忽略，防止密码泄露）
      */
+    @JsonIgnore
     private String passwordHash;
 
     /**

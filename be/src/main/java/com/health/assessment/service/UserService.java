@@ -1,9 +1,9 @@
 package com.health.assessment.service;
 
-import com.health.assessment.entity.User;
-import com.health.assessment.mapper.UserMapper;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.health.assessment.entity.User;
+import com.health.assessment.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -131,7 +131,8 @@ public class UserService {
         int result = userMapper.update(user);
         if (result > 0) {
             log.info("用户更新成功: {}", user.getId());
-            return user;
+            // 重新查询完整的用户信息返回，避免返回不完整字段
+            return userMapper.selectById(user.getId());
         } else {
             throw new RuntimeException("更新用户失败");
         }

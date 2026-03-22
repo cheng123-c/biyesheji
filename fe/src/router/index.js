@@ -16,24 +16,58 @@ const routes = [
     meta: { requiresAuth: false }
   },
 
-  // 受保护路由
+  // 受保护路由 - 主页（数据看板）
   {
     path: '/',
-    name: 'Home',
-    component: () => import('../views/Home.vue'),
+    name: 'Dashboard',
+    component: () => import('../views/Dashboard.vue'),
     meta: { requiresAuth: true }
   },
+
+  // 健康数据管理
+  {
+    path: '/health-data',
+    name: 'HealthData',
+    component: () => import('../views/HealthData.vue'),
+    meta: { requiresAuth: true }
+  },
+
+  // AI 健康评测
+  {
+    path: '/assessment',
+    name: 'Assessment',
+    component: () => import('../views/Assessment.vue'),
+    meta: { requiresAuth: true }
+  },
+
+  // 通知
+  {
+    path: '/notifications',
+    name: 'Notifications',
+    component: () => import('../views/Notifications.vue'),
+    meta: { requiresAuth: true }
+  },
+
+  // 个人信息
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('../views/Profile.vue'),
+    meta: { requiresAuth: true }
+  },
+
+  // 关于
   {
     path: '/about',
     name: 'About',
     component: () => import('../views/About.vue'),
     meta: { requiresAuth: true }
   },
+
+  // 旧首页重定向
   {
-    path: '/profile',
-    name: 'Profile',
-    component: () => import('../views/Profile.vue'),
-    meta: { requiresAuth: true }
+    path: '/home',
+    redirect: '/'
   },
 
   // 404 页面
@@ -53,8 +87,10 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
 
-  // 页面加载时恢复认证状态
-  if (!authStore.isAuthenticated && !authStore.accessToken) {
+  // 页面加载时恢复认证状态：
+  // - 有 accessToken 但 user 未加载时（如页面刷新），需要重新获取用户信息
+  // - 没有 accessToken 时直接不恢复
+  if (authStore.accessToken && !authStore.user) {
     await authStore.restoreAuthState()
   }
 
@@ -62,7 +98,6 @@ router.beforeEach(async (to, from, next) => {
 
   // 如果需要认证但用户未登录
   if (requiresAuth && !authStore.isAuthenticated) {
-    // 重定向到登录页
     next({
       name: 'Login',
       query: { redirect: to.fullPath }
@@ -72,7 +107,7 @@ router.beforeEach(async (to, from, next) => {
 
   // 如果已登录，尝试访问登录/注册页，重定向到首页
   if (!requiresAuth && authStore.isAuthenticated && (to.name === 'Login' || to.name === 'Register')) {
-    next({ name: 'Home' })
+    next({ name: 'Dashboard' })
     return
   }
 

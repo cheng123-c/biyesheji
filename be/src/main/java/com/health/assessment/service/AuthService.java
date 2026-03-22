@@ -63,20 +63,24 @@ public class AuthService {
             throw new BusinessException("邮箱已被注册");
         }
 
-        // 检查手机号是否已存在（如果提供）
-        if (registerDTO.getPhone() != null) {
-            existingUser = userMapper.selectByPhone(registerDTO.getPhone());
+        // 检查手机号是否已存在（如果提供且非空）
+        if (registerDTO.getPhone() != null && !registerDTO.getPhone().trim().isEmpty()) {
+            existingUser = userMapper.selectByPhone(registerDTO.getPhone().trim());
             if (existingUser != null) {
                 throw new BusinessException("手机号已被注册");
             }
         }
 
-        // 创建新用户
+        // 创建新用户（phone/realName 为空字符串时存为 null，避免唯一索引冲突）
+        String phone = (registerDTO.getPhone() != null && !registerDTO.getPhone().trim().isEmpty())
+                ? registerDTO.getPhone().trim() : null;
+        String realName = (registerDTO.getRealName() != null && !registerDTO.getRealName().trim().isEmpty())
+                ? registerDTO.getRealName().trim() : null;
         User newUser = User.builder()
                 .username(registerDTO.getUsername())
                 .email(registerDTO.getEmail())
-                .phone(registerDTO.getPhone())
-                .realName(registerDTO.getRealName())
+                .phone(phone)
+                .realName(realName)
                 .passwordHash(passwordEncoder.encode(registerDTO.getPassword()))
                 .status("ACTIVE")
                 .gender("UNKNOWN")

@@ -142,9 +142,9 @@ public interface UserMapper {
     int insert(User user);
 
     /**
-     * 更新用户信息
+     * 更新用户个人资料（仅允许更新 realName/age/gender/avatarUrl/bio，不允许修改 username/email/phone）
      */
-    @Update("UPDATE t_user SET username = #{username}, email = #{email}, phone = #{phone}, " +
+    @Update("UPDATE t_user SET " +
             "real_name = #{realName}, age = #{age}, gender = #{gender}, avatar_url = #{avatarUrl}, " +
             "bio = #{bio}, updated_at = NOW() " +
             "WHERE id = #{id} AND is_deleted = 0")

@@ -74,7 +74,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const response = await authApi.login(credentials)
-      const { access_token, refresh_token, user_id, username: uname } = response.data
+      const { access_token, refresh_token } = response.data
 
       // 保存 Token
       accessToken.value = access_token

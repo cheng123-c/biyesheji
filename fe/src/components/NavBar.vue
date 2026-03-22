@@ -11,35 +11,60 @@
 
       <!-- 导航菜单 -->
       <ul class="nav-menu" :class="{ active: menuOpen }">
+        <!-- 未登录 -->
         <li v-if="!isAuthenticated">
           <router-link to="/login" class="nav-link">登录</router-link>
         </li>
         <li v-if="!isAuthenticated">
-          <router-link to="/register" class="nav-link btn btn-primary">注册</router-link>
+          <router-link to="/register" class="nav-link btn btn-outline">注册</router-link>
         </li>
 
+        <!-- 已登录导航 -->
         <li v-if="isAuthenticated">
-          <router-link to="/" class="nav-link">首页</router-link>
+          <router-link to="/" class="nav-link" active-class="nav-link-active" exact>
+            🏠 首页
+          </router-link>
         </li>
         <li v-if="isAuthenticated">
-          <router-link to="/about" class="nav-link">关于</router-link>
+          <router-link to="/health-data" class="nav-link" active-class="nav-link-active">
+            📊 健康数据
+          </router-link>
+        </li>
+        <li v-if="isAuthenticated">
+          <router-link to="/assessment" class="nav-link" active-class="nav-link-active">
+            🧠 AI 评测
+          </router-link>
+        </li>
+
+        <!-- 通知图标（带未读数） -->
+        <li v-if="isAuthenticated" class="notif-item">
+          <router-link to="/notifications" class="nav-link notif-link" active-class="nav-link-active">
+            🔔
+            <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </router-link>
         </li>
 
         <!-- 用户菜单 -->
         <li v-if="isAuthenticated" class="user-menu">
           <button @click="toggleUserMenu" class="user-button">
-            <span class="username">{{ username }}</span>
-            <span class="dropdown-icon">▼</span>
+            <span class="user-avatar">{{ userInitial }}</span>
+            <span class="username">{{ displayName }}</span>
+            <span class="dropdown-icon" :class="{ rotated: userMenuOpen }">▼</span>
           </button>
 
           <div v-if="userMenuOpen" class="dropdown-menu">
-            <router-link to="/profile" class="dropdown-item">
+            <router-link to="/profile" class="dropdown-item" @click="closeMenus">
               <span class="icon">👤</span>
               个人信息
             </router-link>
+            <router-link to="/about" class="dropdown-item" @click="closeMenus">
+              <span class="icon">ℹ️</span>
+              关于
+            </router-link>
+            <div class="dropdown-divider"></div>
             <button @click="handleLogout" class="dropdown-item btn-logout">
               <span class="icon">🚪</span>
-              登出
+              退出登录
             </button>
           </div>
         </li>
@@ -47,44 +72,85 @@
 
       <!-- 移动菜单按钮 -->
       <button class="menu-toggle" @click="menuOpen = !menuOpen">
-        <span></span>
-        <span></span>
-        <span></span>
+        <span :class="{ open: menuOpen }"></span>
+        <span :class="{ open: menuOpen }"></span>
+        <span :class="{ open: menuOpen }"></span>
       </button>
     </div>
   </nav>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { getUnreadCount } from '@/services/assessmentApi'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const menuOpen = ref(false)
 const userMenuOpen = ref(false)
+const unreadCount = ref(0)
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const username = computed(() => authStore.username)
+
+const displayName = computed(() => {
+  const user = authStore.user
+  return user?.realName || user?.username || '用户'
+})
+
+const userInitial = computed(() => {
+  const name = displayName.value
+  return name ? name.charAt(0).toUpperCase() : 'U'
+})
 
 const toggleUserMenu = () => {
   userMenuOpen.value = !userMenuOpen.value
 }
 
-const handleLogout = () => {
-  authStore.logout()
+const closeMenus = () => {
   userMenuOpen.value = false
   menuOpen.value = false
+}
+
+const handleLogout = () => {
+  authStore.logout()
+  closeMenus()
   router.push('/login')
 }
 
-// 点击其他地方关闭菜单
-document.addEventListener('click', (e) => {
+// 加载未读通知数
+const loadUnreadCount = async () => {
+  if (!isAuthenticated.value) return
+  try {
+    const response = await getUnreadCount()
+    unreadCount.value = response.data || 0
+  } catch {
+    unreadCount.value = 0
+  }
+}
+
+// 点击外部关闭菜单
+const handleOutsideClick = (e) => {
   if (!e.target.closest('.user-menu')) {
     userMenuOpen.value = false
   }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleOutsideClick)
+  if (isAuthenticated.value) {
+    loadUnreadCount()
+    // 每分钟刷新一次未读数
+    const timer = setInterval(loadUnreadCount, 60000)
+    onUnmounted(() => clearInterval(timer))
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleOutsideClick)
 })
 </script>
 
@@ -92,7 +158,7 @@ document.addEventListener('click', (e) => {
 .navbar {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -108,10 +174,7 @@ document.addEventListener('click', (e) => {
   height: 60px;
 }
 
-.navbar-brand {
-  display: flex;
-  align-items: center;
-}
+.navbar-brand {}
 
 .brand-link {
   display: flex;
@@ -119,27 +182,18 @@ document.addEventListener('click', (e) => {
   color: white;
   text-decoration: none;
   font-weight: bold;
-  font-size: 20px;
-  transition: all 0.3s;
+  font-size: 18px;
+  gap: 8px;
 }
 
-.brand-link:hover {
-  opacity: 0.8;
-}
+.brand-link:hover { opacity: 0.9; }
 
-.logo-icon {
-  font-size: 24px;
-  margin-right: 8px;
-}
+.logo-icon { font-size: 24px; }
 
-.brand-text {
-  display: none;
-}
+.brand-text { display: none; }
 
 @media (min-width: 768px) {
-  .brand-text {
-    display: inline;
-  }
+  .brand-text { display: inline; }
 }
 
 .nav-menu {
@@ -148,78 +202,115 @@ document.addEventListener('click', (e) => {
   list-style: none;
   margin: 0;
   padding: 0;
-  gap: 10px;
+  gap: 4px;
 }
 
 .nav-link {
-  color: white;
+  color: rgba(255,255,255,0.85);
   text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  transition: all 0.3s;
+  padding: 8px 14px;
+  border-radius: 6px;
+  transition: all 0.2s;
   display: block;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255,255,255,0.15);
+  color: white;
 }
 
-.btn-primary {
-  background-color: rgba(255, 255, 255, 0.3);
-  border: 1px solid white;
+.nav-link-active {
+  background-color: rgba(255,255,255,0.2);
+  color: white;
 }
 
-.btn-primary:hover {
-  background-color: rgba(255, 255, 255, 0.4);
+.btn-outline {
+  border: 1px solid rgba(255,255,255,0.5);
+  color: white;
 }
 
-.user-menu {
+/* 通知图标 */
+.notif-item { position: relative; }
+
+.notif-link {
   position: relative;
+  font-size: 18px;
+  padding: 6px 12px;
 }
+
+.notif-badge {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  min-width: 16px;
+  height: 16px;
+  background: #e74c3c;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+/* 用户菜单 */
+.user-menu { position: relative; }
 
 .user-button {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255,255,255,0.15);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 16px;
-  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.25);
+  padding: 6px 12px;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
 
-.user-button:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+.user-button:hover { background: rgba(255,255,255,0.25); }
+
+.user-avatar {
+  width: 26px;
+  height: 26px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: bold;
 }
 
 .dropdown-icon {
-  font-size: 10px;
-  transition: transform 0.3s;
+  font-size: 9px;
+  transition: transform 0.2s;
 }
 
-.user-menu.active .dropdown-icon {
-  transform: rotate(180deg);
-}
+.dropdown-icon.rotated { transform: rotate(180deg); }
 
 .dropdown-menu {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 8px);
   right: 0;
   background: white;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   min-width: 180px;
-  margin-top: 8px;
   z-index: 1000;
+  overflow: hidden;
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 12px 16px;
   color: #333;
   text-decoration: none;
@@ -228,34 +319,36 @@ document.addEventListener('click', (e) => {
   width: 100%;
   text-align: left;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background 0.15s;
   font-size: 14px;
 }
 
-.dropdown-item:hover {
-  background-color: #f5f5f5;
+.dropdown-item:hover { background: #f5f5f5; }
+
+.dropdown-item .icon { font-size: 15px; }
+
+.dropdown-divider {
+  height: 1px;
+  background: #eee;
+  margin: 4px 0;
 }
 
-.dropdown-item .icon {
-  font-size: 16px;
-}
+.btn-logout:hover { background: #fff5f5; }
 
-.btn-logout:hover {
-  background-color: #fee;
-}
-
+/* 移动菜单按钮 */
 .menu-toggle {
   display: none;
   flex-direction: column;
   background: none;
   border: none;
   cursor: pointer;
-  gap: 6px;
+  gap: 5px;
+  padding: 4px;
 }
 
 .menu-toggle span {
-  width: 25px;
-  height: 3px;
+  width: 24px;
+  height: 2px;
   background-color: white;
   border-radius: 2px;
   transition: all 0.3s;
@@ -269,46 +362,43 @@ document.addEventListener('click', (e) => {
     left: 0;
     right: 0;
     flex-direction: column;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 10px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    padding: 10px 20px;
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s;
+    transition: max-height 0.3s ease;
     gap: 0;
+    align-items: stretch;
   }
 
   .nav-menu.active {
-    max-height: 400px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    max-height: 500px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
   }
 
-  .nav-menu.active li {
-    padding: 10px 0;
+  .nav-menu.active > li {
+    padding: 4px 0;
   }
 
-  .menu-toggle {
-    display: flex;
-  }
+  .menu-toggle { display: flex; }
 
   .dropdown-menu {
     position: static;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255,255,255,0.1);
     box-shadow: none;
-    margin-top: 0;
+    border-radius: 6px;
+    margin-top: 4px;
   }
 
   .dropdown-item {
-    color: white;
-    padding: 10px 16px;
+    color: rgba(255,255,255,0.9);
+    padding: 10px 14px;
   }
 
-  .dropdown-item:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-  }
+  .dropdown-item:hover { background: rgba(255,255,255,0.2); }
 
-  .btn-logout:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-  }
+  .btn-logout:hover { background: rgba(255,0,0,0.15); }
 }
 </style>
 

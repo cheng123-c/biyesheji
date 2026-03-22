@@ -99,13 +99,26 @@ public interface HealthDataMapper {
                                                 @Param("endTime") LocalDateTime endTime);
 
     /**
-     * 查询所有数据类型的最新值
+     * 查询所有数据类型的最新值（每种类型只取最新的一条）
+     * 使用外层别名 t1，避免子查询中与外层同名表的混淆
      */
-    @Select("SELECT * FROM t_health_data WHERE user_id = #{userId} " +
-            "AND collected_at = (" +
-            "SELECT MAX(collected_at) FROM t_health_data " +
-            "WHERE user_id = #{userId} AND data_type = t_health_data.data_type" +
+    @Select("SELECT t1.* FROM t_health_data t1 " +
+            "WHERE t1.user_id = #{userId} " +
+            "AND t1.collected_at = (" +
+            "SELECT MAX(t2.collected_at) FROM t_health_data t2 " +
+            "WHERE t2.user_id = #{userId} AND t2.data_type = t1.data_type" +
             ")")
+    @Results({
+            @Result(column = "id", property = "id", id = true),
+            @Result(column = "user_id", property = "userId"),
+            @Result(column = "data_type", property = "dataType"),
+            @Result(column = "data_value", property = "dataValue"),
+            @Result(column = "unit", property = "unit"),
+            @Result(column = "data_source", property = "dataSource"),
+            @Result(column = "device_id", property = "deviceId"),
+            @Result(column = "collected_at", property = "collectedAt"),
+            @Result(column = "created_at", property = "createdAt")
+    })
     List<HealthData> selectLatestAllTypes(Long userId);
 
     /**

@@ -1,12 +1,13 @@
 package com.health.assessment.controller;
 
+import com.github.pagehelper.PageInfo;
 import com.health.assessment.common.ApiResponse;
 import com.health.assessment.dto.UserProfileDTO;
 import com.health.assessment.entity.User;
 import com.health.assessment.exception.AuthenticationException;
+import com.health.assessment.exception.BusinessException;
 import com.health.assessment.security.JwtTokenProvider;
 import com.health.assessment.service.UserService;
-import com.github.pagehelper.PageInfo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -62,14 +63,27 @@ public class UserController {
 
     /**
      * 获取用户信息（根据ID）
+     * 只允许查看自己的信息，防止越权访问
      *
+     * @param request HTTP 请求
      * @param userId 用户ID
      * @return 用户信息
      */
     @GetMapping("/{userId}")
-    @Operation(summary = "获取用户信息", description = "根据用户ID获取用户详细信息")
-    public ApiResponse<UserProfileDTO> getUserById(@PathVariable Long userId) {
+    @Operation(summary = "获取用户信息", description = "根据用户ID获取用户详细信息（只能查看自己）")
+    public ApiResponse<UserProfileDTO> getUserById(
+            HttpServletRequest request,
+            @PathVariable Long userId) {
         log.info("获取用户信息: userId={}", userId);
+
+        // 防止越权：只允许用户查看自己的信息
+        Long currentUserId = (Long) request.getAttribute("userId");
+        if (currentUserId == null) {
+            throw new AuthenticationException("未能获取用户ID，请重新登录");
+        }
+        if (!currentUserId.equals(userId)) {
+            throw new BusinessException("无权限查看其他用户信息");
+        }
 
         User user = userService.getUserById(userId);
         UserProfileDTO profileDTO = convertToProfileDTO(user);

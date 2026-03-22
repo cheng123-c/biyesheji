@@ -101,6 +101,7 @@
             type="checkbox"
             required
           />
+          <label for="agree">我已阅读并同意服务条款和隐私政策</label>
         </div>
 
         <!-- 注册按钮 -->
