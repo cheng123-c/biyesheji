@@ -48,6 +48,30 @@ const routes = [
     meta: { requiresAuth: true }
   },
 
+  // 医疗记录
+  {
+    path: '/medical-records',
+    name: 'MedicalRecords',
+    component: () => import('../views/MedicalRecords.vue'),
+    meta: { requiresAuth: true }
+  },
+
+  // 健康建议
+  {
+    path: '/suggestions',
+    name: 'Suggestions',
+    component: () => import('../views/Suggestions.vue'),
+    meta: { requiresAuth: true }
+  },
+
+  // 干预方案
+  {
+    path: '/interventions',
+    name: 'Interventions',
+    component: () => import('../views/Interventions.vue'),
+    meta: { requiresAuth: true }
+  },
+
   // 个人信息
   {
     path: '/profile',
@@ -74,7 +98,8 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: () => import('../views/NotFound.vue')
+    component: () => import('../views/NotFound.vue'),
+    meta: { requiresAuth: false }
   }
 ]
 

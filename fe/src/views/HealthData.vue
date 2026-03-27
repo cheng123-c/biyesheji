@@ -74,27 +74,7 @@
         <p>暂无 {{ getDataTypeName(selectedType) }} 的历史数据</p>
       </div>
       <div v-else class="trend-chart-container">
-        <div class="simple-chart">
-          <div class="chart-y-axis">
-            <span>{{ trendMax }}</span>
-            <span>{{ Math.round((trendMax + trendMin) / 2) }}</span>
-            <span>{{ trendMin }}</span>
-          </div>
-          <div class="chart-bars">
-            <div
-              v-for="(item, index) in trendData.slice(-14)"
-              :key="index"
-              class="chart-bar-wrapper"
-            >
-              <div
-                class="chart-bar"
-                :style="{ height: getBarHeight(item.dataValue) + '%' }"
-                :title="`${item.dataValue} ${getUnit(selectedType)} - ${formatDate(item.collectedAt)}`"
-              ></div>
-              <span class="chart-date">{{ formatShortDate(item.collectedAt) }}</span>
-            </div>
-          </div>
-        </div>
+        <div ref="chartRef" class="echarts-container"></div>
       </div>
     </section>
 
@@ -198,7 +178,7 @@
           <div class="form-group">
             <label>单位</label>
             <input
-              v-model="uploadForm.unit"
+
               type="text"
               placeholder="自动填充"
               class="form-input"
@@ -235,7 +215,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import * as echarts from 'echarts'
 import {
   uploadHealthData,
   getLatestHealthData,
@@ -252,6 +233,11 @@ const trendLoading = ref(false)
 const listLoading = ref(true)
 const uploading = ref(false)
 const showUploadModal = ref(false)
+
+// ECharts
+const chartRef = ref(null)
+let chartInstance = null
+let resizeHandler = null
 
 // 数据
 const latestData = ref([])
@@ -285,16 +271,6 @@ const filteredList = computed(() => {
   )
 })
 
-const trendMax = computed(() => {
-  if (!trendData.value.length) return 100
-  return Math.ceil(Math.max(...trendData.value.map(d => Number(d.dataValue))))
-})
-
-const trendMin = computed(() => {
-  if (!trendData.value.length) return 0
-  return Math.floor(Math.min(...trendData.value.map(d => Number(d.dataValue))))
-})
-
 // 页面加载
 onMounted(async () => {
   await Promise.all([
@@ -304,6 +280,16 @@ onMounted(async () => {
   ])
 })
 
+onUnmounted(() => {
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler)
+    resizeHandler = null
+  }
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+})
 // 加载最新数据
 const loadLatestData = async () => {
   latestLoading.value = true
@@ -346,11 +332,103 @@ const loadTrendData = async () => {
     const startTime = toLocalDateTimeStr(new Date(Date.now() - selectedDays.value * 24 * 60 * 60 * 1000))
     const response = await getHealthDataTrend(selectedType.value, startTime, endTime)
     trendData.value = (response.data || []).reverse()
+    await nextTick()
+    renderChart()
   } catch (err) {
     console.error('加载趋势数据失败:', err)
     trendData.value = []
   } finally {
     trendLoading.value = false
+  }
+}
+
+// 渲染 ECharts 图表
+const renderChart = () => {
+  if (!chartRef.value || trendData.value.length === 0) return
+
+  if (!chartInstance) {
+    chartInstance = echarts.init(chartRef.value)
+  }
+
+  const typeName = getDataTypeName(selectedType.value)
+  const unit = getUnit(selectedType.value)
+  const normalRange = normalRanges[selectedType.value]
+
+  const xData = trendData.value.map(d => formatShortDate(d.collectedAt))
+  const yData = trendData.value.map(d => Number(d.dataValue))
+
+  const markLines = []
+  if (normalRange) {
+    markLines.push({ yAxis: normalRange.min, name: '正常下限', lineStyle: { color: '#27ae60', type: 'dashed' } })
+    markLines.push({ yAxis: normalRange.max, name: '正常上限', lineStyle: { color: '#e74c3c', type: 'dashed' } })
+  }
+
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        const p = params[0]
+        const val = p.value
+        let status = '—'
+        if (normalRange) {
+          if (val < normalRange.min) status = '⚠️ 偏低'
+          else if (val > normalRange.max) status = '⚠️ 偏高'
+          else status = '✅ 正常'
+        }
+        return `${p.axisValue}<br/>${typeName}: <strong>${val} ${unit}</strong><br/>状态: ${status}`
+      }
+    },
+    legend: { show: false },
+    grid: { top: 40, right: 20, bottom: 40, left: 60 },
+    xAxis: {
+      type: 'category',
+      data: xData,
+      axisLabel: { color: '#888', fontSize: 11 },
+      axisLine: { lineStyle: { color: '#eee' } }
+    },
+    yAxis: {
+      type: 'value',
+      name: unit,
+      nameTextStyle: { color: '#888', fontSize: 11 },
+      axisLabel: { color: '#888', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#f0f0f0' } }
+    },
+    series: [
+      {
+        name: typeName,
+        type: 'line',
+        data: yData,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: { color: '#667eea', width: 2 },
+        itemStyle: {
+          color: (params) => {
+            if (!normalRange) return '#667eea'
+            const v = params.value
+            return (v < normalRange.min || v > normalRange.max) ? '#e74c3c' : '#667eea'
+          }
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(102,126,234,0.3)' },
+            { offset: 1, color: 'rgba(102,126,234,0.02)' }
+          ])
+        },
+        markLine: markLines.length > 0 ? {
+          silent: true,
+          data: markLines
+        } : undefined
+      }
+    ]
+  }
+
+  chartInstance.setOption(option)
+
+  // 响应式 - 只注册一次，避免内存泄漏
+  if (!resizeHandler) {
+    resizeHandler = () => chartInstance && chartInstance.resize()
+    window.addEventListener('resize', resizeHandler)
   }
 }
 
@@ -498,12 +576,6 @@ const getValueStatusText = (item) => {
   return '正常'
 }
 
-const getBarHeight = (value) => {
-  const range = trendMax.value - trendMin.value
-  if (range === 0) return 50
-  return Math.max(5, ((Number(value) - trendMin.value) / range) * 90)
-}
-
 const formatTime = (time) => {
   if (!time) return '-'
   return new Date(time).toLocaleString('zh-CN', {
@@ -639,61 +711,9 @@ section h2 {
   gap: 12px;
 }
 
-.simple-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  height: 200px;
-  padding: 10px 0;
-}
-
-.chart-y-axis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 100%;
-  text-align: right;
-  font-size: 12px;
-  color: #888;
-  min-width: 50px;
-  padding-right: 8px;
-}
-
-.chart-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  flex: 1;
-  height: 100%;
-}
-
-.chart-bar-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  height: 100%;
-  justify-content: flex-end;
-}
-
-.chart-bar {
+.echarts-container {
   width: 100%;
-  background: linear-gradient(to top, #667eea, #764ba2);
-  border-radius: 4px 4px 0 0;
-  transition: height 0.3s ease;
-  cursor: pointer;
-  min-height: 4px;
-}
-
-.chart-bar:hover {
-  opacity: 0.8;
-}
-
-.chart-date {
-  font-size: 10px;
-  color: #999;
-  margin-top: 4px;
-  white-space: nowrap;
+  height: 300px;
 }
 
 /* 数据列表 */

@@ -69,6 +69,59 @@
       </div>
     </section>
 
+    <!-- 健康管理模块概览 -->
+    <section class="health-modules-section">
+      <div class="section-header">
+        <h2>健康管理</h2>
+      </div>
+      <div class="modules-grid">
+        <!-- 医疗记录 -->
+        <div class="module-card" @click="$router.push('/medical-records')">
+          <div class="module-icon">🏥</div>
+          <div class="module-info">
+            <div class="module-title">医疗记录</div>
+            <div class="module-desc">管理您的诊断、用药、检查报告等档案</div>
+            <div class="module-stat">
+              <span class="stat-badge stat-blue">共 {{ medicalRecordCount }} 条记录</span>
+            </div>
+          </div>
+          <div class="module-arrow">›</div>
+        </div>
+
+        <!-- 健康建议 -->
+        <div class="module-card" @click="$router.push('/suggestions')">
+          <div class="module-icon">💡</div>
+          <div class="module-info">
+            <div class="module-title">健康建议</div>
+            <div class="module-desc">查看 AI 生成的个性化健康建议</div>
+            <div class="module-stat">
+              <span v-if="suggestionUnreadCount > 0" class="stat-badge stat-orange">
+                {{ suggestionUnreadCount }} 条未读
+              </span>
+              <span v-else class="stat-badge stat-green">暂无未读</span>
+            </div>
+          </div>
+          <div class="module-arrow">›</div>
+        </div>
+
+        <!-- 干预方案 -->
+        <div class="module-card" @click="$router.push('/interventions')">
+          <div class="module-icon">🏃</div>
+          <div class="module-info">
+            <div class="module-title">干预方案</div>
+            <div class="module-desc">饮食、运动、用药等健康干预计划</div>
+            <div class="module-stat">
+              <span v-if="activeInterventionCount > 0" class="stat-badge stat-green">
+                {{ activeInterventionCount }} 个进行中
+              </span>
+              <span v-else class="stat-badge stat-gray">暂无进行中</span>
+            </div>
+          </div>
+          <div class="module-arrow">›</div>
+        </div>
+      </div>
+    </section>
+
     <!-- 关键健康指标 -->
     <section class="vital-section">
       <div class="section-header">
@@ -110,6 +163,18 @@
         <router-link to="/assessment" class="quick-action-btn">
           <span class="qa-icon">🧠</span>
           <span>AI 评测</span>
+        </router-link>
+        <router-link to="/medical-records" class="quick-action-btn">
+          <span class="qa-icon">🏥</span>
+          <span>医疗记录</span>
+        </router-link>
+        <router-link to="/suggestions" class="quick-action-btn">
+          <span class="qa-icon">💡</span>
+          <span>健康建议</span>
+        </router-link>
+        <router-link to="/interventions" class="quick-action-btn">
+          <span class="qa-icon">🏃</span>
+          <span>干预方案</span>
         </router-link>
         <router-link to="/profile" class="quick-action-btn">
           <span class="qa-icon">👤</span>
@@ -168,6 +233,9 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getLatestHealthData, getHealthDataStatistics } from '@/services/healthDataApi'
 import { getLatestAssessment, getAssessmentCount, getUnreadCount, getUnreadNotifications } from '@/services/assessmentApi'
+import { getSuggestionUnreadCount } from '@/services/suggestionApi'
+import { getActiveInterventionCount } from '@/services/interventionApi'
+import { getMedicalRecords } from '@/services/medicalRecordApi'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -180,6 +248,11 @@ const assessmentCount = ref(0)
 const unreadCount = ref(0)
 const recentNotifications = ref([])
 const vitalsLoading = ref(true)
+
+// 新增统计数据
+const suggestionUnreadCount = ref(0)
+const activeInterventionCount = ref(0)
+const medicalRecordCount = ref(0)
 
 // 用户名
 const userName = computed(() => authStore.user?.realName || authStore.user?.username || '用户')
@@ -205,7 +278,8 @@ onMounted(async () => {
     loadVitals(),
     loadAssessment(),
     loadCounts(),
-    loadNotifications()
+    loadNotifications(),
+    loadNewModuleStats()
   ])
 })
 
@@ -252,6 +326,21 @@ const loadNotifications = async () => {
     recentNotifications.value = (response.data || []).slice(0, 3)
   } catch {
     recentNotifications.value = []
+  }
+}
+
+const loadNewModuleStats = async () => {
+  try {
+    const [suggRes, interventionRes, recordRes] = await Promise.all([
+      getSuggestionUnreadCount().catch(() => ({ data: 0 })),
+      getActiveInterventionCount().catch(() => ({ data: 0 })),
+      getMedicalRecords(1, 1).catch(() => ({ data: { total: 0 } }))
+    ])
+    suggestionUnreadCount.value = suggRes.data || 0
+    activeInterventionCount.value = interventionRes.data || 0
+    medicalRecordCount.value = recordRes.data?.total || 0
+  } catch (err) {
+    console.error('加载健康管理统计失败:', err)
   }
 }
 
@@ -696,9 +785,75 @@ section h2 {
   font-size: 14px;
 }
 
+/* 健康管理模块卡片 */
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.module-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 10px;
+  border: 1px solid #eee;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafbff;
+}
+
+.module-card:hover {
+  border-color: #667eea;
+  background: #f0f3ff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102,126,234,0.15);
+}
+
+.module-icon { font-size: 32px; flex-shrink: 0; }
+
+.module-info { flex: 1; }
+
+.module-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.module-desc {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.module-stat { }
+
+.stat-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.stat-blue { background: #e8f4fd; color: #2980b9; }
+.stat-orange { background: #fff3e0; color: #e67e22; }
+.stat-green { background: #e8f8f5; color: #27ae60; }
+.stat-gray { background: #f0f0f0; color: #888; }
+
+.module-arrow {
+  font-size: 20px;
+  color: #ccc;
+  flex-shrink: 0;
+}
+
 /* 响应式 */
 @media (max-width: 1024px) {
   .overview-cards { grid-template-columns: repeat(2, 1fr); }
+  .modules-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
@@ -706,6 +861,7 @@ section h2 {
   .overview-cards { grid-template-columns: repeat(2, 1fr); }
   .vitals-grid { grid-template-columns: repeat(2, 1fr); }
   .quick-actions { flex-wrap: wrap; }
+  .modules-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {

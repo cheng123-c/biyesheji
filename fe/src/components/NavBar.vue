@@ -35,6 +35,21 @@
             🧠 AI 评测
           </router-link>
         </li>
+        <li v-if="isAuthenticated">
+          <router-link to="/medical-records" class="nav-link" active-class="nav-link-active">
+            🏥 医疗记录
+          </router-link>
+        </li>
+        <li v-if="isAuthenticated">
+          <router-link to="/suggestions" class="nav-link" active-class="nav-link-active">
+            💡 健康建议
+          </router-link>
+        </li>
+        <li v-if="isAuthenticated">
+          <router-link to="/interventions" class="nav-link" active-class="nav-link-active">
+            🏃 干预方案
+          </router-link>
+        </li>
 
         <!-- 通知图标（带未读数） -->
         <li v-if="isAuthenticated" class="notif-item">

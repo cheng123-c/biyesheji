@@ -6,12 +6,14 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.health.assessment.entity.Assessment;
 import com.health.assessment.entity.HealthData;
+import com.health.assessment.entity.HealthSuggestion;
 import com.health.assessment.entity.Notification;
 import com.health.assessment.entity.User;
 import com.health.assessment.exception.BusinessException;
 import com.health.assessment.exception.ResourceNotFoundException;
 import com.health.assessment.mapper.AssessmentMapper;
 import com.health.assessment.mapper.HealthDataMapper;
+import com.health.assessment.mapper.HealthSuggestionMapper;
 import com.health.assessment.mapper.NotificationMapper;
 import com.health.assessment.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +47,7 @@ public class AssessmentService {
     private final UserMapper userMapper;
     private final NotificationMapper notificationMapper;
     private final HealthDataMapper healthDataMapper;
+    private final HealthSuggestionMapper healthSuggestionMapper;
     private final HealthDataService healthDataService;
     private final DeepSeekService deepSeekService;
     private final ObjectMapper objectMapper;
@@ -99,6 +103,9 @@ public class AssessmentService {
         // 保存报告
         assessmentMapper.insert(assessment);
         log.info("评测报告生成成功: userId={}, id={}", userId, assessment.getId());
+
+        // 自动生成健康建议
+        autoGenerateSuggestions(userId, assessment, aiResult);
 
         // 推送通知
         sendAssessmentNotification(userId, assessment);
@@ -234,6 +241,112 @@ public class AssessmentService {
                 .aiAnalysis(aiResult)
                 .createdAt(LocalDateTime.now())
                 .build();
+    }
+
+    /**
+     * 根据 AI 评测结果自动生成健康建议
+     *
+     * @param userId     用户ID
+     * @param assessment 评测报告
+     * @param aiResult   AI原始返回结果（JSON字符串）
+     */
+    private void autoGenerateSuggestions(Long userId, Assessment assessment, String aiResult) {
+        try {
+            List<HealthSuggestion> suggestions = new ArrayList<>();
+
+            // 解析 AI 返回中的 recommendations 数组
+            JsonNode root = objectMapper.readTree(aiResult);
+            JsonNode recs = root.path("recommendations");
+            if (recs.isArray() && recs.size() > 0) {
+                for (int i = 0; i < recs.size(); i++) {
+                    String content = recs.get(i).asText().trim();
+                    if (content.isEmpty()) continue;
+
+                    // 根据优先级：如果风险等级高，前几条建议优先级也高
+                    String priority = "MEDIUM";
+                    String riskLevel = assessment.getRiskLevel();
+                    if (("HIGH".equals(riskLevel) || "CRITICAL".equals(riskLevel)) && i < 2) {
+                        priority = "HIGH";
+                    } else if ("LOW".equals(riskLevel)) {
+                        priority = "LOW";
+                    }
+
+                    HealthSuggestion suggestion = HealthSuggestion.builder()
+                            .userId(userId)
+                            .suggestionType(inferSuggestionType(content))
+                            .suggestionContent(content)
+                            .priority(priority)
+                            .evidenceLevel("AI_GENERATED")
+                            .createdBy(0L)  // 0 表示 AI 系统生成
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                    suggestions.add(suggestion);
+                }
+            }
+
+            // 若 AI 结果中没有建议，根据风险等级生成默认建议
+            if (suggestions.isEmpty()) {
+                suggestions = buildDefaultSuggestions(userId, assessment.getRiskLevel());
+            }
+
+            // 批量保存健康建议
+            for (HealthSuggestion s : suggestions) {
+                healthSuggestionMapper.insert(s);
+            }
+            log.info("自动生成健康建议成功: userId={}, count={}", userId, suggestions.size());
+
+        } catch (Exception e) {
+            // 建议生成失败不影响主流程
+            log.warn("自动生成健康建议失败: userId={}, error={}", userId, e.getMessage());
+        }
+    }
+
+    /**
+     * 根据建议内容推断建议类型
+     */
+    private String inferSuggestionType(String content) {
+        String lower = content.toLowerCase();
+        if (lower.contains("饮食") || lower.contains("食物") || lower.contains("营养") || lower.contains("饮水")) {
+            return "DIET";
+        } else if (lower.contains("运动") || lower.contains("锻炼") || lower.contains("步行") || lower.contains("活动")) {
+            return "EXERCISE";
+        } else if (lower.contains("药") || lower.contains("用药") || lower.contains("服药")) {
+            return "MEDICATION";
+        } else if (lower.contains("睡眠") || lower.contains("作息") || lower.contains("休息") || lower.contains("压力")) {
+            return "LIFESTYLE";
+        } else {
+            return "OTHER";
+        }
+    }
+
+    /**
+     * 根据风险等级生成默认健康建议
+     */
+    private List<HealthSuggestion> buildDefaultSuggestions(Long userId, String riskLevel) {
+        List<HealthSuggestion> list = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        if ("HIGH".equals(riskLevel) || "CRITICAL".equals(riskLevel)) {
+            list.add(HealthSuggestion.builder().userId(userId).suggestionType("OTHER")
+                    .suggestionContent("您的健康风险等级较高，建议尽快前往医疗机构进行专业检查，并告知医生您的健康数据情况。")
+                    .priority("HIGH").evidenceLevel("AI_GENERATED").createdBy(0L).createdAt(now).build());
+            list.add(HealthSuggestion.builder().userId(userId).suggestionType("LIFESTYLE")
+                    .suggestionContent("保证充足的睡眠（7-8小时），避免熬夜，减少精神压力，有助于降低健康风险。")
+                    .priority("HIGH").evidenceLevel("AI_GENERATED").createdBy(0L).createdAt(now).build());
+        } else if ("MEDIUM".equals(riskLevel)) {
+            list.add(HealthSuggestion.builder().userId(userId).suggestionType("EXERCISE")
+                    .suggestionContent("建议每周进行3-5次中等强度有氧运动，每次30分钟以上，如快走、游泳或骑车。")
+                    .priority("MEDIUM").evidenceLevel("AI_GENERATED").createdBy(0L).createdAt(now).build());
+            list.add(HealthSuggestion.builder().userId(userId).suggestionType("DIET")
+                    .suggestionContent("注意均衡饮食，减少高盐、高脂、高糖食物的摄入，增加蔬菜水果比例。")
+                    .priority("MEDIUM").evidenceLevel("AI_GENERATED").createdBy(0L).createdAt(now).build());
+        } else {
+            list.add(HealthSuggestion.builder().userId(userId).suggestionType("LIFESTYLE")
+                    .suggestionContent("您的健康状况良好！继续保持规律作息和均衡饮食，定期进行健康评测。")
+                    .priority("LOW").evidenceLevel("AI_GENERATED").createdBy(0L).createdAt(now).build());
+        }
+
+        return list;
     }
 
     /**
