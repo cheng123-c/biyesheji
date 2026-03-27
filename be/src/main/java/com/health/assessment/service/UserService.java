@@ -6,6 +6,9 @@ import com.health.assessment.entity.User;
 import com.health.assessment.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,7 @@ public class UserService {
     /**
      * 根据ID查询用户
      */
+    @Cacheable(value = "user", key = "'id:' + #userId", unless = "#result == null")
     public User getUserById(Long userId) {
         log.debug("查询用户: {}", userId);
         User user = userMapper.selectById(userId);
@@ -43,6 +47,7 @@ public class UserService {
     /**
      * 根据用户名查询用户
      */
+    @Cacheable(value = "user", key = "'username:' + #username", unless = "#result == null")
     public User getUserByUsername(String username) {
         log.debug("根据用户名查询用户: {}", username);
         return userMapper.selectByUsername(username);
@@ -51,6 +56,7 @@ public class UserService {
     /**
      * 根据邮箱查询用户
      */
+    @Cacheable(value = "user", key = "'email:' + #email", unless = "#result == null")
     public User getUserByEmail(String email) {
         log.debug("根据邮箱查询用户: {}", email);
         return userMapper.selectByEmail(email);
@@ -115,6 +121,12 @@ public class UserService {
      * 更新用户信息
      */
     @Transactional(rollbackFor = Exception.class)
+    @Caching(evict = {
+        @CacheEvict(value = "user", key = "'id:' + #user.id"),
+        @CacheEvict(value = "user", key = "'username:' + #user.username"),
+        // 邮箱可能被用于查询缓存，更新时也需清除
+        @CacheEvict(value = "user", key = "'email:' + #user.email", condition = "#user.email != null")
+    })
     public User updateUser(User user) {
         log.info("更新用户: {}", user.getId());
 
@@ -142,6 +154,7 @@ public class UserService {
      * 更新用户密码
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = "user", key = "'id:' + #userId")
     public void updateUserPassword(Long userId, String newPasswordHash) {
         log.info("更新用户密码: {}", userId);
 
@@ -164,6 +177,7 @@ public class UserService {
      * 更新用户状态
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = "user", key = "'id:' + #userId")
     public void updateUserStatus(Long userId, String status) {
         log.info("更新用户状态: {} -> {}", userId, status);
 
@@ -184,6 +198,7 @@ public class UserService {
      * 软删除用户
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = "user", key = "'id:' + #userId")
     public void deleteUser(Long userId) {
         log.info("删除用户: {}", userId);
 

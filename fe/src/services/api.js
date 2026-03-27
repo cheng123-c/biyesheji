@@ -30,7 +30,11 @@ apiClient.interceptors.request.use(
 // Response interceptor - 处理响应和错误
 apiClient.interceptors.response.use(
   response => {
-    // 返回数据（ApiResponse 对象）
+    // Blob 类型响应（如 PDF 导出）需要返回完整 response，以便调用方访问 headers
+    if (response.config?.responseType === 'blob') {
+      return response
+    }
+    // 其他情况返回数据（ApiResponse 对象）
     return response.data
   },
   error => {

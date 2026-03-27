@@ -31,6 +31,20 @@ export const getAssessmentCount = () => {
   return apiClient.get('/v1/assessments/count')
 }
 
+// 导出指定评测报告为 PDF（返回 blob）
+export const exportAssessmentPdf = (id) => {
+  return apiClient.get(`/v1/assessments/${id}/export/pdf`, {
+    responseType: 'blob'
+  })
+}
+
+// 导出最新评测报告为 PDF（返回 blob）
+export const exportLatestAssessmentPdf = () => {
+  return apiClient.get('/v1/assessments/latest/export/pdf', {
+    responseType: 'blob'
+  })
+}
+
 /**
  * 通知相关 API
  */

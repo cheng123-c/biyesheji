@@ -27,6 +27,25 @@ spring:
       aggressive-lazy-loading: false
       multiple-result-sets-enabled: true
 
+  # Redis 缓存配置
+  redis:
+    host: "${REDIS_HOST:redis}"
+    port: 6379
+    password: "${REDIS_PASSWORD:}"
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 16
+        max-idle: 8
+        min-idle: 2
+        max-wait: 1000ms
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000  # 默认 5 分钟
+      cache-null-values: false
+      key-prefix: "health:"
+
   # CORS 配置
   mvc:
     cors:

@@ -10,10 +10,14 @@ import com.health.assessment.exception.BusinessException;
 import com.health.assessment.mapper.UserMapper;
 import com.health.assessment.service.AssessmentService;
 import com.health.assessment.service.DeepSeekService;
+import com.health.assessment.service.PdfExportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
@@ -42,6 +48,7 @@ public class AssessmentController {
     private final DeepSeekService deepSeekService;
     private final UserMapper userMapper;
     private final ObjectMapper objectMapper;
+    private final PdfExportService pdfExportService;
 
     /**
      * 发起健康评测
@@ -160,6 +167,74 @@ public class AssessmentController {
             fallback.put("disclaimer", "以上分析仅供参考，不构成医疗诊断。如有不适，请及时就医。");
             return ApiResponse.success("症状分析完成", fallback);
         }
+    }
+
+    /**
+     * 导出评测报告为 PDF
+     */
+    @GetMapping("/{id}/export/pdf")
+    @Operation(summary = "导出 PDF 报告", description = "将指定评测报告导出为 PDF 文件")
+    public ResponseEntity<byte[]> exportPdf(
+            HttpServletRequest request,
+            @PathVariable Long id) {
+        Long userId = getUserId(request);
+        Assessment assessment = assessmentService.getById(id);
+
+        // 校验报告归属权
+        if (!assessment.getUserId().equals(userId)) {
+            throw new BusinessException("无权限访问该报告");
+        }
+
+        User user = userMapper.selectById(userId);
+        byte[] pdfBytes = pdfExportService.generateAssessmentPdf(assessment, user);
+
+        log.info("导出 PDF 报告: userId={}, assessmentId={}", userId, id);
+        return buildPdfResponse(pdfBytes, assessment);
+    }
+
+    /**
+     * 导出最新评测报告为 PDF
+     */
+    @GetMapping("/latest/export/pdf")
+    @Operation(summary = "导出最新 PDF 报告", description = "将最新评测报告导出为 PDF")
+    public ResponseEntity<byte[]> exportLatestPdf(HttpServletRequest request) {
+        Long userId = getUserId(request);
+        Assessment assessment = assessmentService.getLatest(userId);
+        User user = userMapper.selectById(userId);
+        byte[] pdfBytes = pdfExportService.generateAssessmentPdf(assessment, user);
+
+        log.info("导出最新 PDF 报告: userId={}", userId);
+        return buildPdfResponse(pdfBytes, assessment);
+    }
+
+    /**
+     * 构建 PDF 响应，使用符合 RFC 5987 的 Content-Disposition 头
+     * 支持 Chrome/Firefox/Safari 等主流浏览器的中文文件名下载
+     */
+    private ResponseEntity<byte[]> buildPdfResponse(byte[] pdfBytes, Assessment assessment) {
+        String dateStr = assessment.getAssessmentDate() != null
+                ? assessment.getAssessmentDate().toString().replace("-", "")
+                : "report";
+
+        // RFC 5987 编码：filename*=UTF-8''<url-encoded-name>
+        String encodedName;
+        try {
+            encodedName = URLEncoder.encode("健康评测报告_" + dateStr + ".pdf",
+                    StandardCharsets.UTF_8.name()).replace("+", "%20");
+        } catch (Exception e) {
+            encodedName = "health_report_" + dateStr + ".pdf";
+        }
+
+        // 同时提供 ASCII fallback 和 UTF-8 编码名，兼容性更好
+        String contentDisposition = "attachment; filename=\"health_report_" + dateStr + ".pdf\"; "
+                + "filename*=UTF-8''" + encodedName;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, contentDisposition);
+        headers.setContentLength(pdfBytes.length);
+
+        return ResponseEntity.ok().headers(headers).body(pdfBytes);
     }
 
     // ============ 私有方法 ============

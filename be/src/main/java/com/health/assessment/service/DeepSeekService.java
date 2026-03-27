@@ -13,11 +13,13 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.PostConstruct;
 
 /**
  * DeepSeek AI 服务
@@ -45,6 +47,17 @@ public class DeepSeekService {
     private int maxRetries;
 
     private final ObjectMapper objectMapper;
+
+    /** 复用的 RestTemplate，避免每次请求都新建对象 */
+    private RestTemplate restTemplate;
+
+    @PostConstruct
+    private void init() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(timeout > 0 ? timeout : 30_000);
+        factory.setReadTimeout(timeout > 0 ? timeout : 30_000);
+        restTemplate = new RestTemplate(factory);
+    }
 
     /**
      * 分析健康数据并生成评估结果
@@ -78,8 +91,10 @@ public class DeepSeekService {
                 try {
                     Thread.sleep(1000L * attempt);
                 } catch (InterruptedException ie) {
+                    // 恢复中断状态并立即退出循环
                     Thread.currentThread().interrupt();
-                    break;
+                    log.warn("健康分析重试等待被中断");
+                    return generateLocalAssessment(healthDataSummary, userInfo);
                 }
             }
         }
@@ -91,8 +106,6 @@ public class DeepSeekService {
      * 调用 DeepSeek API
      */
     private String callDeepSeekAPI(String prompt) throws Exception {
-        RestTemplate restTemplate = new RestTemplate();
-
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(apiKey);
@@ -124,10 +137,33 @@ public class DeepSeekService {
 
         if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
             JsonNode responseJson = objectMapper.readTree(response.getBody());
-            return responseJson.path("choices").path(0).path("message").path("content").asText();
+            String content = responseJson.path("choices").path(0).path("message").path("content").asText();
+            // 清洗 AI 可能返回的 Markdown 代码块包装（```json ... ```）
+            return stripMarkdownCodeBlock(content);
         }
 
         throw new RuntimeException("DeepSeek API 返回异常: " + response.getStatusCode());
+    }
+
+    /**
+     * 清洗 AI 返回的 Markdown 代码块包装
+     * 如 ```json\n{...}\n``` -> {...}
+     */
+    private String stripMarkdownCodeBlock(String content) {
+        if (content == null) return "{}";
+        String trimmed = content.trim();
+        // 处理 ```json ... ``` 或 ``` ... ``` 格式
+        if (trimmed.startsWith("```")) {
+            int firstNewline = trimmed.indexOf('\n');
+            if (firstNewline > 0) {
+                trimmed = trimmed.substring(firstNewline + 1);
+            }
+            if (trimmed.endsWith("```")) {
+                trimmed = trimmed.substring(0, trimmed.length() - 3);
+            }
+            return trimmed.trim();
+        }
+        return trimmed;
     }
 
     /**
@@ -198,8 +234,10 @@ public class DeepSeekService {
                 try {
                     Thread.sleep(1000L * attempt);
                 } catch (InterruptedException ie) {
+                    // 恢复中断状态并立即退出循环
                     Thread.currentThread().interrupt();
-                    break;
+                    log.warn("症状分析重试等待被中断");
+                    return generateLocalSymptomAnalysis(symptoms, userInfo);
                 }
             }
         }

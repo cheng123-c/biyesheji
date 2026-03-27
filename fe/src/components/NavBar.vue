@@ -68,6 +68,23 @@
           </button>
 
           <div v-if="userMenuOpen" class="dropdown-menu">
+            <router-link to="/questionnaires" class="dropdown-item" @click="closeMenus">
+              <span class="icon">📋</span>
+              健康问卷
+            </router-link>
+            <router-link to="/health-content" class="dropdown-item" @click="closeMenus">
+              <span class="icon">📚</span>
+              健康知识库
+            </router-link>
+            <router-link to="/symptom-analysis" class="dropdown-item" @click="closeMenus">
+              <span class="icon">🔬</span>
+              症状分析
+            </router-link>
+            <router-link to="/feedback" class="dropdown-item" @click="closeMenus">
+              <span class="icon">💬</span>
+              意见反馈
+            </router-link>
+            <div class="dropdown-divider"></div>
             <router-link to="/profile" class="dropdown-item" @click="closeMenus">
               <span class="icon">👤</span>
               个人信息

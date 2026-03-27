@@ -119,7 +119,27 @@
           <span class="confidence-label">AI置信度：</span>
           <span class="confidence-value">{{ parsedAiAnalysis.confidenceScore }}%</span>
         </div>
+
+        <!-- PDF 导出按钮 -->
+        <div class="export-section">
+          <button
+            @click="handleExportPdf"
+            :disabled="exporting"
+            class="btn btn-export-pdf"
+          >
+            <span v-if="exporting">
+              <span class="spinner spinner-dark"></span> 生成中...
+            </span>
+            <span v-else>📄 导出 PDF 报告</span>
+          </button>
+        </div>
       </div>
+    </section>
+
+    <!-- 评分趋势图 -->
+    <section v-if="reports.length >= 2" class="chart-section">
+      <h2>健康评分趋势</h2>
+      <div ref="chartRef" class="echarts-box"></div>
     </section>
 
     <!-- 历史评测报告 -->
@@ -164,17 +184,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import * as echarts from 'echarts'
 import {
   startEvaluation,
   getLatestAssessment,
   getAssessmentReports,
-  getAssessmentCount
+  getAssessmentCount,
+  exportAssessmentPdf,
+  exportLatestAssessmentPdf
 } from '@/services/assessmentApi'
 
 const error = ref(null)
 const success = ref(null)
 const evaluating = ref(false)
+const exporting = ref(false)
 const latestReport = ref(null)
 const reports = ref([])
 const assessmentCount = ref(null)
@@ -182,6 +206,99 @@ const historyLoading = ref(false)
 const historyPage = ref(1)
 const historyTotalPages = ref(1)
 const selectedReportId = ref(null)
+
+// ECharts 趋势图
+const chartRef = ref(null)
+let chartInstance = null
+let chartResizeFn = null
+
+const initChart = () => {
+  if (!chartRef.value || reports.value.length < 2) return
+  if (chartInstance) chartInstance.dispose()
+
+  chartInstance = echarts.init(chartRef.value)
+
+  // 历史记录按时间正序排列（报告列表一般是倒序的）
+  const sorted = [...reports.value].reverse()
+  const dates = sorted.map(r => {
+    const d = new Date(r.assessmentDate)
+    return `${d.getMonth() + 1}/${d.getDate()}`
+  })
+  const scores = sorted.map(r => r.overallScore ?? 0)
+  const riskColors = sorted.map(r => {
+    const colorMap = { LOW: '#00b894', MEDIUM: '#fdcb6e', HIGH: '#e17055', CRITICAL: '#e74c3c' }
+    return colorMap[r.riskLevel] || '#667eea'
+  })
+
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        const p = params[0]
+        const r = sorted[p.dataIndex]
+        return `${p.name}<br/>健康评分：<b>${p.value}</b><br/>风险等级：${getRiskLabel(r.riskLevel)}`
+      }
+    },
+    grid: { top: 20, right: 20, bottom: 40, left: 50 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLabel: { color: '#888', fontSize: 12 },
+      axisLine: { lineStyle: { color: '#eee' } }
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: 100,
+      axisLabel: { color: '#888', fontSize: 12 },
+      splitLine: { lineStyle: { color: '#f5f5f5' } }
+    },
+    series: [{
+      type: 'line',
+      data: scores,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 8,
+      lineStyle: { color: '#667eea', width: 2.5 },
+      itemStyle: {
+        color: (params) => riskColors[params.dataIndex] || '#667eea',
+        borderWidth: 2,
+        borderColor: '#fff'
+      },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(102,126,234,0.25)' },
+          { offset: 1, color: 'rgba(102,126,234,0.02)' }
+        ])
+      }
+    }]
+  }
+  chartInstance.setOption(option)
+
+  // 先移除旧的 resize 监听，再添加新的，避免重复监听
+  if (chartResizeFn) window.removeEventListener('resize', chartResizeFn)
+  chartResizeFn = () => chartInstance?.resize()
+  window.addEventListener('resize', chartResizeFn)
+}
+
+// 组件销毁时释放 ECharts 实例和事件监听
+onUnmounted(() => {
+  if (chartResizeFn) {
+    window.removeEventListener('resize', chartResizeFn)
+    chartResizeFn = null
+  }
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+})
+
+watch(reports, async (val) => {
+  if (val.length >= 2) {
+    await nextTick()
+    initChart()
+  }
+}, { deep: true })
 
 // 解析 AI 分析结果
 const parsedAiAnalysis = computed(() => {
@@ -267,6 +384,47 @@ const selectReport = (report) => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+const handleExportPdf = async () => {
+  if (!latestReport.value) return
+  exporting.value = true
+  try {
+    let response
+    if (latestReport.value.id) {
+      response = await exportAssessmentPdf(latestReport.value.id)
+    } else {
+      response = await exportLatestAssessmentPdf()
+    }
+
+    // 从响应头获取文件名，否则使用默认名
+    const contentDisposition = response.headers?.['content-disposition'] || ''
+    let filename = '健康评测报告.pdf'
+    const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+    if (match && match[1]) {
+      filename = decodeURIComponent(match[1].replace(/['"]/g, ''))
+    } else if (latestReport.value.assessmentDate) {
+      const d = latestReport.value.assessmentDate.replace(/-/g, '')
+      filename = `健康评测报告_${d}.pdf`
+    }
+
+    // 创建下载链接
+    const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    success.value = 'PDF 报告已成功导出！'
+  } catch (err) {
+    console.error('PDF 导出失败:', err)
+    error.value = 'PDF 导出失败，请稍后重试'
+  } finally {
+    exporting.value = false
+  }
+}
+
 // 工具函数
 const getRiskClass = (level) => {
   const classes = {
@@ -331,6 +489,12 @@ section h2 {
   font-size: 20px;
   color: #333;
   margin: 0 0 20px 0;
+}
+
+/* ECharts 图表容器 */
+.echarts-box {
+  width: 100%;
+  height: 280px;
 }
 
 /* 发起评测区 */
@@ -638,6 +802,50 @@ section h2 {
 .confidence-value {
   color: #667eea;
   font-weight: 600;
+}
+
+/* PDF 导出区域 */
+.export-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-export-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  background: linear-gradient(135deg, #00b894, #00cec9);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-export-pdf:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 184, 148, 0.4);
+}
+
+.btn-export-pdf:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner-dark {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 /* 历史列表 */

@@ -72,6 +72,38 @@ const routes = [
     meta: { requiresAuth: true }
   },
 
+  // 健康问卷
+  {
+    path: '/questionnaires',
+    name: 'Questionnaire',
+    component: () => import('../views/Questionnaire.vue'),
+    meta: { requiresAuth: true }
+  },
+
+  // 健康知识库
+  {
+    path: '/health-content',
+    name: 'HealthContent',
+    component: () => import('../views/HealthContent.vue'),
+    meta: { requiresAuth: true }
+  },
+
+  // 症状分析（知识图谱）
+  {
+    path: '/symptom-analysis',
+    name: 'SymptomAnalysis',
+    component: () => import('../views/SymptomAnalysis.vue'),
+    meta: { requiresAuth: true }
+  },
+
+  // 意见反馈
+  {
+    path: '/feedback',
+    name: 'Feedback',
+    component: () => import('../views/Feedback.vue'),
+    meta: { requiresAuth: true }
+  },
+
   // 个人信息
   {
     path: '/profile',

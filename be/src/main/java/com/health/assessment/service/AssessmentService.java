@@ -18,8 +18,12 @@ import com.health.assessment.mapper.NotificationMapper;
 import com.health.assessment.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -51,6 +55,7 @@ public class AssessmentService {
     private final HealthDataService healthDataService;
     private final DeepSeekService deepSeekService;
     private final ObjectMapper objectMapper;
+    private final CacheManager cacheManager;
 
     /**
      * 发起健康评测
@@ -67,6 +72,7 @@ public class AssessmentService {
         Assessment existing = assessmentMapper.selectByUserIdAndDate(userId, today);
         if (existing != null) {
             log.info("今天已有评测记录，返回最新结果: userId={}", userId);
+            // 已有记录，直接返回，无需清除缓存
             return existing;
         }
 
@@ -110,12 +116,31 @@ public class AssessmentService {
         // 推送通知
         sendAssessmentNotification(userId, assessment);
 
+        // 在事务成功提交后再清除 latest 缓存，避免事务回滚后缓存与数据不一致
+        final Long finalUserId = userId;
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        org.springframework.cache.Cache cache = cacheManager.getCache("assessment");
+                        if (cache != null) {
+                            cache.evict("latest:" + finalUserId);
+                        }
+                    } catch (Exception e) {
+                        log.warn("清除评测缓存失败: userId={}", finalUserId);
+                    }
+                }
+            });
+        }
         return assessment;
     }
+
 
     /**
      * 根据ID获取评测报告
      */
+    @Cacheable(value = "assessment", key = "'id:' + #id", unless = "#result == null")
     public Assessment getById(Long id) {
         Assessment assessment = assessmentMapper.selectById(id);
         if (assessment == null) {
@@ -127,6 +152,7 @@ public class AssessmentService {
     /**
      * 获取用户最新评测报告
      */
+    @Cacheable(value = "assessment", key = "'latest:' + #userId", unless = "#result == null")
     public Assessment getLatest(Long userId) {
         Assessment assessment = assessmentMapper.selectLatestByUserId(userId);
         if (assessment == null) {
@@ -376,6 +402,7 @@ public class AssessmentService {
     }
 
     private String riskLevelLabel(String riskLevel) {
+        if (riskLevel == null) return "未知";
         switch (riskLevel) {
             case "LOW": return "低风险";
             case "MEDIUM": return "中风险";
