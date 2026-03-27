@@ -32,13 +32,17 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理认证异常
+     * 根据异常的 code 决定 HTTP 状态码：401 未授权，403 权限不足
      */
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiResponse<?>> handleAuthenticationException(
             AuthenticationException ex, WebRequest request) {
-        log.warn("认证异常: {}", ex.getMessage());
+        log.warn("认证异常: code={}, message={}", ex.getCode(), ex.getMessage());
         ApiResponse<?> response = ApiResponse.error(ex.getCode(), ex.getMessage());
-        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+        HttpStatus httpStatus = (ex.getCode() != null && ex.getCode() == 403)
+                ? HttpStatus.FORBIDDEN
+                : HttpStatus.UNAUTHORIZED;
+        return new ResponseEntity<>(response, httpStatus);
     }
 
     /**

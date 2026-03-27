@@ -194,6 +194,7 @@ public class UserController {
                 .avatarUrl(user.getAvatarUrl())
                 .bio(user.getBio())
                 .status(user.getStatus())
+                .role(user.getRole())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();

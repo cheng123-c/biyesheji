@@ -30,7 +30,7 @@ apiClient.interceptors.request.use(
 // Response interceptor - 处理响应和错误
 apiClient.interceptors.response.use(
   response => {
-    // 返回数据
+    // 返回数据（ApiResponse 对象）
     return response.data
   },
   error => {
@@ -38,13 +38,19 @@ apiClient.interceptors.response.use(
 
     // 处理 401 Unauthorized - Token 过期或无效
     if (error.response && error.response.status === 401) {
-      console.warn('Token 过期，尝试刷新...')
+      console.warn('Token 过期，跳转到登录页...')
 
       // 清除认证信息
       authStore.logout()
 
       // 重定向到登录页
       window.location.href = '/login'
+    }
+
+    // 处理 403 Forbidden - 权限不足
+    if (error.response && error.response.status === 403) {
+      console.warn('权限不足，拒绝访问')
+      // 不做重定向，让具体页面处理 403 错误
     }
 
     if (error.response) {

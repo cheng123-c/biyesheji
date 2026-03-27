@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS t_user (
     avatar_url VARCHAR(500) COMMENT '头像URL',
     bio TEXT COMMENT '个人简介',
     status ENUM('ACTIVE', 'INACTIVE', 'BANNED') DEFAULT 'ACTIVE' COMMENT '账户状态',
+    role ENUM('USER', 'ADMIN') DEFAULT 'USER' COMMENT '用户角色',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted_at TIMESTAMP NULL COMMENT '删除时间（软删除）',
@@ -382,6 +383,12 @@ ON DUPLICATE KEY UPDATE display_name=VALUES(display_name);
 -- CREATE INDEX IF NOT EXISTS idx_user_id_data_type_date ON t_health_data(user_id, data_type, collected_at DESC);
 -- CREATE INDEX IF NOT EXISTS idx_assessment_date_risk ON t_ai_assessment(assessment_date, disease_risk_level);
 -- CREATE INDEX IF NOT EXISTS idx_notification_user_read ON t_notification(user_id, read_status, created_at DESC);
+
+-- ===================== 数据迁移（已有数据库执行此部分）=====================
+
+-- 如果 t_user 表中尚未有 role 字段，执行以下语句添加（幂等操作）
+-- ALTER TABLE t_user ADD COLUMN IF NOT EXISTS role ENUM('USER', 'ADMIN') DEFAULT 'USER' COMMENT '用户角色' AFTER status;
+-- UPDATE t_user SET role = 'USER' WHERE role IS NULL;
 
 -- 数据库初始化完成
 SELECT '数据库初始化完成！' AS status;

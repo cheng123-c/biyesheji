@@ -83,6 +83,7 @@ public class AuthService {
                 .realName(realName)
                 .passwordHash(passwordEncoder.encode(registerDTO.getPassword()))
                 .status("ACTIVE")
+                .role("USER")  // 默认角色为普通用户
                 .gender("UNKNOWN")
                 .isDeleted(0) // 0 = 未删除, 1 = 已删除
                 .createdAt(LocalDateTime.now())

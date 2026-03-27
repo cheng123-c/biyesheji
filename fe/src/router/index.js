@@ -88,6 +88,14 @@ const routes = [
     meta: { requiresAuth: true }
   },
 
+  // 管理员后台
+  {
+    path: '/admin',
+    name: 'AdminDashboard',
+    component: () => import('../views/AdminDashboard.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+
   // 旧首页重定向
   {
     path: '/home',
@@ -134,6 +142,17 @@ router.beforeEach(async (to, from, next) => {
   if (!requiresAuth && authStore.isAuthenticated && (to.name === 'Login' || to.name === 'Register')) {
     next({ name: 'Dashboard' })
     return
+  }
+
+  // 检查管理员权限
+  const requiresAdmin = to.meta.requiresAdmin === true
+  if (requiresAdmin && authStore.user) {
+    const userRole = authStore.user.role
+    if (userRole !== 'ADMIN' && userRole !== 'admin') {
+      // 非管理员尝试访问管理员页面，重定向到首页
+      next({ name: 'Dashboard' })
+      return
+    }
   }
 
   next()

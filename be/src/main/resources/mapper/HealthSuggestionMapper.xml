@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.health.assessment.mapper.HealthSuggestionMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="suggestionResultMap" type="com.health.assessment.entity.HealthSuggestion">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="suggestion_type" property="suggestionType"/>
+        <result column="suggestion_content" property="suggestionContent"/>
+        <result column="priority" property="priority"/>
+        <result column="evidence_level" property="evidenceLevel"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="read_at" property="readAt"/>
+    </resultMap>
+
+    <!-- 分页查询用户健康建议 -->
+    <select id="selectByUserIdWithPage" resultMap="suggestionResultMap">
+        SELECT * FROM t_health_suggestion
+        WHERE user_id = #{userId}
+        <if test="suggestionType != null and suggestionType != ''">
+            AND suggestion_type = #{suggestionType}
+        </if>
+        <if test="priority != null and priority != ''">
+            AND priority = #{priority}
+        </if>
+        ORDER BY
+        CASE priority
+            WHEN 'HIGH' THEN 1
+            WHEN 'MEDIUM' THEN 2
+            WHEN 'LOW' THEN 3
+            ELSE 4
+        END ASC,
+        created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计用户健康建议数量 -->
+    <select id="countByUserIdWithCondition" resultType="int">
+        SELECT COUNT(*) FROM t_health_suggestion
+        WHERE user_id = #{userId}
+        <if test="suggestionType != null and suggestionType != ''">
+            AND suggestion_type = #{suggestionType}
+        </if>
+        <if test="priority != null and priority != ''">
+            AND priority = #{priority}
+        </if>
+    </select>
+
+    <!-- 按类型和优先级统计 -->
+    <select id="countByTypeAndPriority" resultType="map">
+        SELECT
+            suggestion_type,
+            priority,
+            COUNT(*) as count,
+            SUM(CASE WHEN read_at IS NULL THEN 1 ELSE 0 END) as unread_count
+        FROM t_health_suggestion
+        WHERE user_id = #{userId}
+        GROUP BY suggestion_type, priority
+    </select>
+
+</mapper>
+

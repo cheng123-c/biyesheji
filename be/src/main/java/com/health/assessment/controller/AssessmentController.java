@@ -1,11 +1,15 @@
 package com.health.assessment.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageInfo;
 import com.health.assessment.common.ApiResponse;
 import com.health.assessment.entity.Assessment;
+import com.health.assessment.entity.User;
 import com.health.assessment.exception.AuthenticationException;
 import com.health.assessment.exception.BusinessException;
+import com.health.assessment.mapper.UserMapper;
 import com.health.assessment.service.AssessmentService;
+import com.health.assessment.service.DeepSeekService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -13,10 +17,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
+import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 
 /**
@@ -32,6 +39,9 @@ import javax.servlet.http.HttpServletRequest;
 public class AssessmentController {
 
     private final AssessmentService assessmentService;
+    private final DeepSeekService deepSeekService;
+    private final UserMapper userMapper;
+    private final ObjectMapper objectMapper;
 
     /**
      * 发起健康评测
@@ -97,6 +107,59 @@ public class AssessmentController {
         Long userId = getUserId(request);
         Integer count = assessmentService.countCurrentYear(userId);
         return ApiResponse.success(count);
+    }
+
+    /**
+     * 症状分析接口
+     *
+     * 基于用户描述的症状，通过 DeepSeek AI 进行初步分析
+     * 注意：仅供参考，不构成医疗诊断
+     */
+    @PostMapping("/analyze-symptoms")
+    @Operation(summary = "症状分析", description = "通过AI对用户描述的症状进行初步分析，仅供参考")
+    public ApiResponse<Map<String, Object>> analyzeSymptoms(
+            HttpServletRequest request,
+            @RequestBody Map<String, String> body) {
+        Long userId = getUserId(request);
+        String symptoms = body.get("symptoms");
+
+        if (symptoms == null || symptoms.trim().isEmpty()) {
+            return ApiResponse.error(400, "请描述您的症状");
+        }
+        if (symptoms.length() > 2000) {
+            return ApiResponse.error(400, "症状描述不能超过2000字");
+        }
+
+        log.info("症状分析请求: userId={}", userId);
+
+        // 获取用户基本信息
+        Map<String, Object> userInfo = new HashMap<>();
+        try {
+            User user = userMapper.selectById(userId);
+            if (user != null) {
+                userInfo.put("age", user.getAge() != null ? user.getAge() : "未知");
+                userInfo.put("gender", user.getGender() != null ? user.getGender() : "UNKNOWN");
+            }
+        } catch (Exception e) {
+            log.warn("获取用户信息失败，使用空信息进行分析: {}", e.getMessage());
+        }
+
+        // 调用 AI 进行症状分析
+        String analysisResult = deepSeekService.analyzeSymptoms(symptoms.trim(), userInfo);
+
+        try {
+            Map<String, Object> resultMap = objectMapper.readValue(analysisResult,
+                    new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+            // 添加免责声明
+            resultMap.put("disclaimer", "以上分析仅供参考，不构成医疗诊断。如有不适，请及时就医。");
+            return ApiResponse.success("症状分析完成", resultMap);
+        } catch (Exception e) {
+            log.error("解析症状分析结果失败: {}", e.getMessage());
+            Map<String, Object> fallback = new HashMap<>();
+            fallback.put("summary", analysisResult);
+            fallback.put("disclaimer", "以上分析仅供参考，不构成医疗诊断。如有不适，请及时就医。");
+            return ApiResponse.success("症状分析完成", fallback);
+        }
     }
 
     // ============ 私有方法 ============

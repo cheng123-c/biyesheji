@@ -72,6 +72,10 @@
               <span class="icon">👤</span>
               个人信息
             </router-link>
+            <router-link v-if="isAdmin" to="/admin" class="dropdown-item" @click="closeMenus">
+              <span class="icon">🛠️</span>
+              管理后台
+            </router-link>
             <router-link to="/about" class="dropdown-item" @click="closeMenus">
               <span class="icon">ℹ️</span>
               关于
@@ -110,6 +114,12 @@ const unreadCount = ref(0)
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const username = computed(() => authStore.username)
+
+const isAdmin = computed(() => {
+  const user = authStore.user
+  if (!user) return false
+  return user.role === 'ADMIN' || user.role === 'admin'
+})
 
 const displayName = computed(() => {
   const user = authStore.user

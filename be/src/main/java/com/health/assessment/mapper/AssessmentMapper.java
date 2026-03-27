@@ -13,6 +13,7 @@ import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 评测报告 Mapper 接口
@@ -142,6 +143,19 @@ public interface AssessmentMapper {
     @Select("SELECT COUNT(*) FROM t_assessment_report " +
             "WHERE user_id = #{userId} AND YEAR(assessment_date) = YEAR(NOW())")
     Integer countCurrentYearByUserId(Long userId);
+
+    /**
+     * 按风险等级统计报告数量（管理员用）
+     * 查询指定日期之后的报告按风险等级分组统计
+     */
+    List<Map<String, Object>> countByRiskLevel(@Param("startDate") LocalDate startDate);
+
+    /**
+     * 按月统计评测次数
+     * 返回指定用户从startDate之后，按月分组的评测次数和平均分
+     */
+    List<Map<String, Object>> countByMonth(@Param("userId") Long userId,
+                                           @Param("startDate") LocalDate startDate);
 
 }
 

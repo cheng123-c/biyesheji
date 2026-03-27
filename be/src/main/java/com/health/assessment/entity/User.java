@@ -77,6 +77,11 @@ public class User implements Serializable {
     private String status;
 
     /**
+     * 用户角色（USER/ADMIN）
+     */
+    private String role;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createdAt;

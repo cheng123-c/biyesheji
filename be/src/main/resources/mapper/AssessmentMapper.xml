@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.health.assessment.mapper.AssessmentMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="assessmentResultMap" type="com.health.assessment.entity.Assessment">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="assessment_date" property="assessmentDate"/>
+        <result column="overall_score" property="overallScore"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="summary" property="summary"/>
+        <result column="recommendation" property="recommendation"/>
+        <result column="ai_analysis" property="aiAnalysis"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 查询用户指定时间范围内的评测报告 -->
+    <select id="selectByUserIdAndDateRange" resultMap="assessmentResultMap">
+        SELECT * FROM t_assessment_report
+        WHERE user_id = #{userId}
+        AND assessment_date >= #{startDate}
+        AND assessment_date &lt;= #{endDate}
+        ORDER BY assessment_date DESC
+    </select>
+
+    <!-- 查询高风险用户的报告 -->
+    <select id="selectHighRiskReports" resultMap="assessmentResultMap">
+        SELECT * FROM t_assessment_report
+        WHERE risk_level IN ('HIGH', 'CRITICAL')
+        AND assessment_date >= #{afterDate}
+        ORDER BY assessment_date DESC
+    </select>
+
+    <!-- 按风险等级统计报告数量（管理员用） -->
+    <select id="countByRiskLevel" resultType="map">
+        SELECT
+            risk_level as riskLevel,
+            COUNT(*) as count
+        FROM t_assessment_report
+        WHERE assessment_date >= #{startDate}
+        GROUP BY risk_level
+    </select>
+
+    <!-- 按月统计评测次数 -->
+    <select id="countByMonth" resultType="map">
+        SELECT
+            DATE_FORMAT(assessment_date, '%Y-%m') as month,
+            COUNT(*) as count,
+            AVG(overall_score) as avg_score
+        FROM t_assessment_report
+        WHERE user_id = #{userId}
+        AND assessment_date >= #{startDate}
+        GROUP BY DATE_FORMAT(assessment_date, '%Y-%m')
+        ORDER BY month ASC
+    </select>
+
+</mapper>
+

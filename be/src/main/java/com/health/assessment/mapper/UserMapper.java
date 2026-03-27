@@ -34,6 +34,7 @@ public interface UserMapper {
             @Result(column = "avatar_url", property = "avatarUrl"),
             @Result(column = "bio", property = "bio"),
             @Result(column = "status", property = "status"),
+            @Result(column = "role", property = "role"),
             @Result(column = "created_at", property = "createdAt"),
             @Result(column = "updated_at", property = "updatedAt"),
             @Result(column = "deleted_at", property = "deletedAt"),
@@ -57,6 +58,7 @@ public interface UserMapper {
             @Result(column = "avatar_url", property = "avatarUrl"),
             @Result(column = "bio", property = "bio"),
             @Result(column = "status", property = "status"),
+            @Result(column = "role", property = "role"),
             @Result(column = "created_at", property = "createdAt"),
             @Result(column = "updated_at", property = "updatedAt"),
             @Result(column = "deleted_at", property = "deletedAt"),
@@ -80,6 +82,7 @@ public interface UserMapper {
             @Result(column = "avatar_url", property = "avatarUrl"),
             @Result(column = "bio", property = "bio"),
             @Result(column = "status", property = "status"),
+            @Result(column = "role", property = "role"),
             @Result(column = "created_at", property = "createdAt"),
             @Result(column = "updated_at", property = "updatedAt"),
             @Result(column = "deleted_at", property = "deletedAt"),
@@ -103,6 +106,7 @@ public interface UserMapper {
             @Result(column = "avatar_url", property = "avatarUrl"),
             @Result(column = "bio", property = "bio"),
             @Result(column = "status", property = "status"),
+            @Result(column = "role", property = "role"),
             @Result(column = "created_at", property = "createdAt"),
             @Result(column = "updated_at", property = "updatedAt"),
             @Result(column = "deleted_at", property = "deletedAt"),
@@ -126,6 +130,7 @@ public interface UserMapper {
             @Result(column = "avatar_url", property = "avatarUrl"),
             @Result(column = "bio", property = "bio"),
             @Result(column = "status", property = "status"),
+            @Result(column = "role", property = "role"),
             @Result(column = "created_at", property = "createdAt"),
             @Result(column = "updated_at", property = "updatedAt"),
             @Result(column = "deleted_at", property = "deletedAt"),
@@ -136,8 +141,8 @@ public interface UserMapper {
     /**
      * 新增用户
      */
-    @Insert("INSERT INTO t_user(username, email, phone, password_hash, real_name, gender, status) " +
-            "VALUES(#{username}, #{email}, #{phone}, #{passwordHash}, #{realName}, #{gender}, #{status})")
+    @Insert("INSERT INTO t_user(username, email, phone, password_hash, real_name, gender, status, role) " +
+            "VALUES(#{username}, #{email}, #{phone}, #{passwordHash}, #{realName}, #{gender}, #{status}, #{role})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(User user);
 

@@ -167,6 +167,138 @@ public class DeepSeekService {
     }
 
     /**
+     * 症状分析 - 基于用户描述的症状，通过 AI 进行推理分析
+     *
+     * @param symptoms 症状描述（自然语言）
+     * @param userInfo 用户基本信息（年龄、性别等）
+     * @return AI 分析结果（JSON字符串）
+     */
+    public String analyzeSymptoms(String symptoms, Map<String, Object> userInfo) {
+        log.info("调用 DeepSeek AI 进行症状分析");
+
+        // 如果没有配置 API Key，使用本地简单分析
+        if (apiKey == null || apiKey.isEmpty()) {
+            log.warn("DeepSeek API Key 未配置，使用本地症状分析模式");
+            return generateLocalSymptomAnalysis(symptoms, userInfo);
+        }
+
+        String prompt = buildSymptomAnalysisPrompt(symptoms, userInfo);
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                String result = callDeepSeekAPI(prompt);
+                log.info("DeepSeek AI 症状分析成功");
+                return result;
+            } catch (Exception e) {
+                log.warn("DeepSeek AI 症状分析调用失败 (第{}次): {}", attempt, e.getMessage());
+                if (attempt == maxRetries) {
+                    log.error("DeepSeek AI 多次调用失败，使用本地症状分析模式");
+                    return generateLocalSymptomAnalysis(symptoms, userInfo);
+                }
+                try {
+                    Thread.sleep(1000L * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+
+        return generateLocalSymptomAnalysis(symptoms, userInfo);
+    }
+
+    /**
+     * 构建症状分析提示词
+     */
+    private String buildSymptomAnalysisPrompt(String symptoms, Map<String, Object> userInfo) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("你是一位专业的临床医学AI助手。请对以下用户描述的症状进行初步分析。\n\n");
+        sb.append("【重要声明】本分析仅供参考，不构成医疗诊断，如有严重症状请及时就医。\n\n");
+
+        sb.append("【用户信息】\n");
+        if (userInfo != null) {
+            userInfo.forEach((k, v) -> sb.append("- ").append(k).append(": ").append(v).append("\n"));
+        }
+
+        sb.append("\n【症状描述】\n");
+        sb.append(symptoms);
+
+        sb.append("\n\n请以JSON格式返回以下内容：\n");
+        sb.append("{\n");
+        sb.append("  \"possibleConditions\": [\"可能的疾病或状况列表（3-5个）\"],\n");
+        sb.append("  \"urgencyLevel\": 紧急程度(LOW/MEDIUM/HIGH/EMERGENCY),\n");
+        sb.append("  \"urgencyDescription\": \"紧急程度说明\",\n");
+        sb.append("  \"recommendations\": [\"建议措施列表\"],\n");
+        sb.append("  \"warningSignals\": [\"需要立即就医的警示症状\"],\n");
+        sb.append("  \"relatedTests\": [\"建议检查项目\"],\n");
+        sb.append("  \"selfCareAdvice\": [\"居家护理建议\"],\n");
+        sb.append("  \"summary\": \"综合分析摘要\"\n");
+        sb.append("}\n");
+        sb.append("请根据症状严重程度和用户年龄性别，给出专业、谨慎的分析。");
+
+        return sb.toString();
+    }
+
+    /**
+     * 本地症状分析（当 AI API 不可用时的降级方案）
+     */
+    private String generateLocalSymptomAnalysis(String symptoms, Map<String, Object> userInfo) {
+        log.info("使用本地症状分析模式");
+
+        Map<String, Object> result = new HashMap<>();
+        String lowerSymptoms = symptoms != null ? symptoms.toLowerCase() : "";
+
+        // 基于关键词的简单规则分析
+        String urgencyLevel = "LOW";
+        String urgencyDesc = "症状较轻，可先观察";
+
+        if (lowerSymptoms.contains("胸痛") || lowerSymptoms.contains("呼吸困难") ||
+                lowerSymptoms.contains("意识") || lowerSymptoms.contains("晕倒") ||
+                lowerSymptoms.contains("剧烈头痛")) {
+            urgencyLevel = "EMERGENCY";
+            urgencyDesc = "存在紧急症状，请立即拨打120或前往急诊";
+        } else if (lowerSymptoms.contains("高烧") || lowerSymptoms.contains("持续疼痛") ||
+                lowerSymptoms.contains("出血")) {
+            urgencyLevel = "HIGH";
+            urgencyDesc = "症状较严重，建议尽快就医";
+        } else if (lowerSymptoms.contains("发烧") || lowerSymptoms.contains("咳嗽") ||
+                lowerSymptoms.contains("头痛") || lowerSymptoms.contains("腹痛")) {
+            urgencyLevel = "MEDIUM";
+            urgencyDesc = "症状中等，建议尽快预约就诊";
+        }
+
+        result.put("possibleConditions", new String[]{"需要医生进一步评估"});
+        result.put("urgencyLevel", urgencyLevel);
+        result.put("urgencyDescription", urgencyDesc);
+        result.put("recommendations", new String[]{
+                "记录症状开始时间、频率和程度",
+                "避免自行用药，特别是抗生素",
+                "保持充足休息和水分摄入",
+                "如症状加重，请立即就医"
+        });
+        result.put("warningSignals", new String[]{
+                "胸痛、呼吸困难",
+                "持续高烧（超过39.5°C）",
+                "意识改变或晕倒",
+                "剧烈头痛突然发作"
+        });
+        result.put("relatedTests", new String[]{"建议就医后由医生决定检查项目"});
+        result.put("selfCareAdvice", new String[]{
+                "保持充足睡眠",
+                "多喝温水",
+                "清淡饮食",
+                "避免剧烈运动"
+        });
+        result.put("summary", "由于AI服务暂时不可用，本分析基于基本规则。建议您描述症状后前往医疗机构进行专业诊断。");
+
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (Exception e) {
+            return "{\"urgencyLevel\":\"MEDIUM\",\"summary\":\"请前往医疗机构就诊\"}";
+        }
+    }
+
+    /**
      * 本地简单评估（当 AI API 不可用时的降级方案）
      */
     private String generateLocalAssessment(String healthDataSummary, Map<String, Object> userInfo) {

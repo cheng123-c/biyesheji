@@ -68,6 +68,11 @@ public class UserProfileDTO {
     private String status;
 
     /**
+     * 用户角色（USER/ADMIN）
+     */
+    private String role;
+
+    /**
      * 创建时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
