@@ -11,7 +11,11 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: '0.0.0.0',
     open: true,
+    allowedHosts:[
+	    'health.com'
+    ],
     proxy: {
       '/api': {
         target: 'http://health.com:8080',
