@@ -34,13 +34,6 @@ spring:
       cache-null-values: false
       key-prefix: "health:"
 
-  # CORS 配置
-  mvc:
-    cors:
-      allowed-origins: "http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:8080,http://health.com:3000,,http://health.com:8080"
-      allowed-methods: "*"
-      allowed-headers: "*"
-      allow-credentials: true
 
   # Jackson JSON 配置
   jackson:
