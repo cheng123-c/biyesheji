@@ -94,14 +94,14 @@ main() {
     echo ""
 
     echo -e "${BLUE}访问地址:${NC}"
-    echo -e "  ${YELLOW}前端:${NC} http://localhost:3000"
-    echo -e "  ${YELLOW}后端 API:${NC} http://localhost:8080/api"
-    echo -e "  ${YELLOW}健康检查:${NC} http://localhost:8080/api/health"
+    echo -e "  ${YELLOW}前端:${NC} http://health.com:3000"
+    echo -e "  ${YELLOW}后端 API:${NC} http://health.com:8080/api"
+    echo -e "  ${YELLOW}健康检查:${NC} http://health.com:8080/api/health"
     echo ""
 
     echo -e "${BLUE}数据库信息:${NC}"
-    echo -e "  ${YELLOW}MySQL:${NC} localhost:3306 (root/root)"
-    echo -e "  ${YELLOW}Redis:${NC} localhost:6379"
+    echo -e "  ${YELLOW}MySQL:${NC} health.com:3306 (root/root)"
+    echo -e "  ${YELLOW}Redis:${NC} health.com:6379"
     echo ""
 
     echo -e "${BLUE}日志查看:${NC}"

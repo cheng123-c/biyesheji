@@ -434,17 +434,17 @@ show_completion_info() {
     npm run dev
 
 3️⃣  打开浏览器:
-    访问 http://localhost:5173
+    访问 http://health.com:5173
 
 📊 数据库信息:
-  - Host: localhost
+  - Host: health.com
   - Port: 3306
   - Database: biyesheji
   - Username: root
   - Password: root
 
 🔴 Redis 信息:
-  - Host: localhost
+  - Host: health.com
   - Port: 6379
 
 ✨ 完成！开始开发吧！

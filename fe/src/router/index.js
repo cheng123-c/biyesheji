@@ -125,7 +125,15 @@ const routes = [
     path: '/admin',
     name: 'AdminDashboard',
     component: () => import('../views/AdminDashboard.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true }
+  },
+
+  // 超管患者监控大屏
+  {
+    path: '/admin/patient-monitor',
+    name: 'PatientMonitor',
+    component: () => import('../views/PatientMonitor.vue'),
+    meta: { requiresAuth: true }
   },
 
   // 旧首页重定向

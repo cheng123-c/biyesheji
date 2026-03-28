@@ -14,7 +14,7 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://health.com:8080',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api'),
       },

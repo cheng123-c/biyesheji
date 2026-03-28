@@ -2,8 +2,17 @@
   <div class="admin-container">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h1>🛠️ 系统管理后台</h1>
-      <p>管理用户、查看系统统计与健康监控</p>
+      <div class="page-header-main">
+        <div>
+          <h1>🛠️ 系统管理后台</h1>
+          <p>管理用户、查看系统统计与健康监控</p>
+        </div>
+        <router-link to="/admin/patient-monitor" class="monitor-entry-btn" target="_blank">
+          <span class="monitor-btn-dot"></span>
+          📡 患者监控大屏
+          <span class="monitor-btn-arrow">→</span>
+        </router-link>
+      </div>
     </div>
 
     <!-- Tab 导航 -->
@@ -1434,6 +1443,12 @@ onMounted(async () => {
   margin-bottom: 24px;
 }
 
+.page-header-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .page-header h1 {
   font-size: 26px;
   color: #333;
@@ -1444,6 +1459,62 @@ onMounted(async () => {
   color: #888;
   margin: 0;
   font-size: 14px;
+}
+
+/* 患者监控大屏入口按钮 */
+.monitor-entry-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #020d1a 0%, #081828 100%);
+  border: 1px solid #00d4ff44;
+  border-radius: 8px;
+  color: #00d4ff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 12px #00d4ff22, inset 0 0 12px #00d4ff08;
+}
+.monitor-entry-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, #00d4ff22, transparent);
+  transition: left 0.5s ease;
+}
+.monitor-entry-btn:hover {
+  border-color: #00d4ff;
+  box-shadow: 0 0 20px #00d4ff44, inset 0 0 20px #00d4ff15;
+  transform: translateY(-1px);
+  color: #00d4ff;
+}
+.monitor-entry-btn:hover::before {
+  left: 100%;
+}
+.monitor-btn-dot {
+  width: 8px; height: 8px;
+  background: #00d4ff;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #00d4ff;
+  animation: monitorDotPulse 1.5s infinite;
+  flex-shrink: 0;
+}
+@keyframes monitorDotPulse {
+  0%,100% { opacity: 1; box-shadow: 0 0 6px #00d4ff; }
+  50% { opacity: 0.5; box-shadow: 0 0 2px #00d4ff; }
+}
+.monitor-btn-arrow {
+  font-size: 16px;
+  transition: transform 0.2s;
+}
+.monitor-entry-btn:hover .monitor-btn-arrow {
+  transform: translateX(4px);
 }
 
 /* Tab 导航 */
