@@ -11,6 +11,10 @@ NC='\033[0m' # No Color
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BE_DIR="$PROJECT_DIR/be"
 FE_DIR="$PROJECT_DIR/fe"
+PID_DIR="/tmp/biyesheji"
+
+# 确保 PID 目录存在
+mkdir -p "$PID_DIR"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}    毕业设计项目 - 生产启动${NC}"
@@ -64,6 +68,7 @@ start_backend() {
     cd "$BE_DIR"
     nohup mvn spring-boot:run > /tmp/backend.log 2>&1 &
     BACKEND_PID=$!
+    echo "$BACKEND_PID" > "$PID_DIR/backend.pid"
     echo -e "${GREEN}✓ 后端服务已启动 (PID: $BACKEND_PID)${NC}"
     echo "  日志文件: /tmp/backend.log"
     echo ""
@@ -75,6 +80,7 @@ start_frontend() {
     cd "$FE_DIR"
     nohup npm run dev > /tmp/frontend.log 2>&1 &
     FRONTEND_PID=$!
+    echo "$FRONTEND_PID" > "$PID_DIR/frontend.pid"
     echo -e "${GREEN}✓ 前端服务已启动 (PID: $FRONTEND_PID)${NC}"
     echo "  日志文件: /tmp/frontend.log"
     echo ""
