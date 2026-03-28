@@ -95,21 +95,16 @@ public interface AssessmentMapper {
 
     /**
      * 查询用户指定时间范围内的评测报告
+     * （定义在 AssessmentMapper.xml 中，使用 resultMap 映射字段）
      */
-    @Select("SELECT * FROM t_assessment_report WHERE user_id = #{userId} " +
-            "AND assessment_date >= #{startDate} AND assessment_date <= #{endDate} " +
-            "ORDER BY assessment_date DESC")
     List<Assessment> selectByUserIdAndDateRange(@Param("userId") Long userId,
                                                 @Param("startDate") LocalDate startDate,
                                                 @Param("endDate") LocalDate endDate);
 
     /**
      * 查询高风险用户的报告
+     * （定义在 AssessmentMapper.xml 中，使用 resultMap 映射字段）
      */
-    @Select("SELECT * FROM t_assessment_report " +
-            "WHERE risk_level IN ('HIGH', 'CRITICAL') " +
-            "AND assessment_date >= #{afterDate} " +
-            "ORDER BY assessment_date DESC")
     List<Assessment> selectHighRiskReports(@Param("afterDate") LocalDate afterDate);
 
     /**

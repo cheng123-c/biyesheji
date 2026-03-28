@@ -26,6 +26,24 @@ services:
       interval: 10s
     restart: unless-stopped
 
+  # Redis 缓存
+  redis:
+    image: redis:7.2-alpine
+    container_name: biyesheji-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - biyesheji-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 10s
+      retries: 5
+      interval: 5s
+    restart: unless-stopped
+
   # RabbitMQ 消息队列（可选）
   # rabbitmq:
   #   image: rabbitmq:3.12-management-alpine
@@ -42,6 +60,7 @@ services:
 
 volumes:
   mysql_data:
+  redis_data:
 
 networks:
   biyesheji-network:

@@ -47,5 +47,8 @@ public class QuestionnaireResponse implements Serializable {
 
     /** 问卷类型 */
     private String questionnaireType;
+
+    /** 用户名（管理员查询时关联） */
+    private String username;
 }
 

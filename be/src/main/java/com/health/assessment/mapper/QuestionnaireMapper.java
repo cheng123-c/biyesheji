@@ -149,5 +149,38 @@ public interface QuestionnaireMapper {
 
     @Select("SELECT COUNT(*) FROM t_questionnaire_response WHERE user_id = #{userId}")
     Integer countResponsesByUserId(Long userId);
+
+    /**
+     * 管理员分页查询所有问卷回答记录（可按问卷ID过滤）
+     */
+    @Select("<script>" +
+            "SELECT r.*, q.title AS questionnaire_title, q.questionnaire_type, u.username " +
+            "FROM t_questionnaire_response r " +
+            "LEFT JOIN t_questionnaire q ON r.questionnaire_id = q.id " +
+            "LEFT JOIN t_user u ON r.user_id = u.id " +
+            "<where>" +
+            "<if test='questionnaireId != null'>AND r.questionnaire_id = #{questionnaireId}</if>" +
+            "</where>" +
+            "ORDER BY r.completed_at DESC" +
+            "</script>")
+    @Results({
+            @Result(column = "id", property = "id", id = true),
+            @Result(column = "user_id", property = "userId"),
+            @Result(column = "questionnaire_id", property = "questionnaireId"),
+            @Result(column = "response_data", property = "responseData"),
+            @Result(column = "score", property = "score"),
+            @Result(column = "completed_at", property = "completedAt"),
+            @Result(column = "created_at", property = "createdAt"),
+            @Result(column = "questionnaire_title", property = "questionnaireTitle"),
+            @Result(column = "questionnaire_type", property = "questionnaireType"),
+            @Result(column = "username", property = "username")
+    })
+    List<QuestionnaireResponse> selectAllResponses(@Param("questionnaireId") Long questionnaireId);
+
+    /**
+     * 切换问卷启用/禁用状态
+     */
+    @Update("UPDATE t_questionnaire SET is_active = #{isActive}, updated_at = NOW() WHERE id = #{id}")
+    int updateActiveStatus(@Param("id") Long id, @Param("isActive") Integer isActive);
 }
 

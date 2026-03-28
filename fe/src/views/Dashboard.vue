@@ -372,7 +372,7 @@ const normalRanges = {
   heart_rate: { min: 60, max: 100 },
   blood_pressure_systolic: { min: 90, max: 120 },
   blood_pressure_diastolic: { min: 60, max: 80 },
-  blood_glucose: { min: 70, max: 100 },
+  blood_glucose: { min: 3.9, max: 6.1 },
   blood_oxygen: { min: 95, max: 100 },
   body_temperature: { min: 36.0, max: 37.5 },
 }

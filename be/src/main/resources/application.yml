@@ -15,21 +15,9 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
 
-  # MyBatis 配置
-  mybatis:
-    mapper-locations: classpath:mapper/*.xml
-    type-aliases-package: com.health.assessment.entity
-    configuration:
-      map-underscore-to-camel-case: true
-      use-generated-keys: true
-      cache-enabled: true
-      lazy-loading-enabled: true
-      aggressive-lazy-loading: false
-      multiple-result-sets-enabled: true
-
   # Redis 缓存配置
   redis:
-    host: "${REDIS_HOST:redis}"
+    host: "${REDIS_HOST:mysql_bs}"
     port: 6379
     password: "${REDIS_PASSWORD:}"
     timeout: 3000ms
@@ -66,6 +54,18 @@ spring:
     date-format: "yyyy-MM-dd HH:mm:ss"
     time-zone: Asia/Shanghai
 
+# MyBatis 配置（顶层，不在 spring 下）
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.health.assessment.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    use-generated-keys: true
+    cache-enabled: true
+    lazy-loading-enabled: true
+    aggressive-lazy-loading: false
+    multiple-result-sets-enabled: true
+
 # MyBatis Plus 分页配置
 pagehelper:
   helper-dialect: mysql
@@ -83,9 +83,9 @@ jwt:
 deepseek:
   api:
     endpoint: "${DEEPSEEK_API_ENDPOINT:https://api.deepseek.com/v1}"
-    key: "${DEEPSEEK_API_KEY:}"
+    key: "sk-92d4cdcb2328467db15a9386b6290f45"
     model: deepseek-chat
-    timeout: 30000
+    timeout: 60000
     max-retries: 3
 
 server:

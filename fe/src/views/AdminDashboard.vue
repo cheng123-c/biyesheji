@@ -361,10 +361,14 @@
 
     <!-- ============ 问卷管理 TAB ============ -->
     <div v-if="activeTab === 'questionnaire'" class="tab-content">
+      <!-- 问卷列表 -->
       <div class="section-card">
         <div class="section-top">
-          <h2>问卷管理</h2>
-          <button class="btn btn-refresh" @click="loadQuestionnaires">🔄 刷新</button>
+          <h2>问卷列表</h2>
+          <div class="right-controls">
+            <button class="btn btn-primary" @click="openQuestionnaireForm(null)">+ 新建问卷</button>
+            <button class="btn btn-refresh" @click="loadQuestionnaires">🔄 刷新</button>
+          </div>
         </div>
         <div v-if="questionnaireLoading" class="loading-box">加载中...</div>
         <div v-else>
@@ -385,7 +389,9 @@
                 <tr v-for="q in questionnaireList" :key="q.id">
                   <td>{{ q.id }}</td>
                   <td>{{ q.title }}</td>
-                  <td>{{ q.questionnaireType }}</td>
+                  <td>
+                    <span class="status-badge">{{ getQTypeLabel(q.questionnaireType) }}</span>
+                  </td>
                   <td>{{ parseQCount(q.questions) }}</td>
                   <td>
                     <span class="status-badge" :class="q.isActive ? 'status-active' : 'status-banned'">
@@ -394,6 +400,11 @@
                   </td>
                   <td>{{ formatDate(q.createdAt) }}</td>
                   <td class="td-actions">
+                    <button class="action-btn btn-view" @click="openQuestionnaireForm(q)">编辑</button>
+                    <button class="action-btn" @click="toggleQuestionnaireActive(q)">
+                      {{ q.isActive ? '禁用' : '启用' }}
+                    </button>
+                    <button class="action-btn btn-view" style="background:#e8f5e9;color:#2e7d32" @click="viewQuestionnaireResponses(q)">回答记录</button>
                     <button class="action-btn btn-delete" @click="deleteQuestionnaire(q.id)">删除</button>
                   </td>
                 </tr>
@@ -403,6 +414,49 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- 回答记录面板 -->
+      <div v-if="viewingQuestionnaire" class="section-card">
+        <div class="section-top">
+          <h2>「{{ viewingQuestionnaire.title }}」回答记录</h2>
+          <div class="right-controls">
+            <button class="btn btn-refresh" @click="loadQuestionnaireResponses()">🔄 刷新</button>
+            <button class="btn-refresh btn" @click="viewingQuestionnaire = null">✕ 关闭</button>
+          </div>
+        </div>
+        <div v-if="qResponseLoading" class="loading-box">加载中...</div>
+        <div v-else>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>用户</th>
+                  <th>得分</th>
+                  <th>完成时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="r in qResponseList" :key="r.id">
+                  <td>{{ r.id }}</td>
+                  <td>{{ r.username || r.userId }}</td>
+                  <td>{{ r.score != null ? r.score : '-' }}</td>
+                  <td>{{ formatDateTime(r.completedAt) }}</td>
+                </tr>
+                <tr v-if="qResponseList.length === 0">
+                  <td colspan="4" class="empty-cell">暂无回答记录</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" v-if="qResponsePageInfo.pages > 1">
+            <button :disabled="qResponsePageInfo.pageNum <= 1" class="page-btn" @click="loadQuestionnaireResponses(qResponsePageInfo.pageNum - 1)">上一页</button>
+            <span class="page-info">第 {{ qResponsePageInfo.pageNum }} / {{ qResponsePageInfo.pages }} 页，共 {{ qResponsePageInfo.total }} 条</span>
+            <button :disabled="qResponsePageInfo.pageNum >= qResponsePageInfo.pages" class="page-btn" @click="loadQuestionnaireResponses(qResponsePageInfo.pageNum + 1)">下一页</button>
+          </div>
+          <div class="total-info" v-else-if="qResponsePageInfo.total > 0">共 {{ qResponsePageInfo.total }} 条记录</div>
         </div>
       </div>
     </div>
@@ -563,6 +617,103 @@
       </div>
     </div>
 
+    <!-- ============ 问卷新建/编辑弹窗 ============ -->
+    <div v-if="showQuestionnaireModal" class="modal-overlay" @click.self="showQuestionnaireModal = false">
+      <div class="modal-box-admin modal-wide modal-q">
+        <h2>{{ editingQuestionnaire.id ? '编辑问卷' : '新建问卷' }}</h2>
+        <div class="edit-form">
+          <div class="form-row">
+            <label>问卷标题 <span class="required">*</span></label>
+            <input v-model="editingQuestionnaire.title" type="text" class="form-input-admin" placeholder="请输入问卷标题" />
+          </div>
+          <div class="form-row">
+            <label>问卷描述</label>
+            <textarea v-model="editingQuestionnaire.description" rows="2" class="form-input-admin" placeholder="问卷说明（可选）"></textarea>
+          </div>
+          <div class="form-row-split">
+            <div class="form-row">
+              <label>问卷类型 <span class="required">*</span></label>
+              <select v-model="editingQuestionnaire.questionnaireType" class="form-input-admin">
+                <option value="LIFESTYLE">生活方式</option>
+                <option value="SYMPTOM">症状自评</option>
+                <option value="MENTAL">心理健康</option>
+                <option value="DIET">饮食习惯</option>
+                <option value="EXERCISE">运动情况</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>状态</label>
+              <select v-model="editingQuestionnaire.isActive" class="form-input-admin">
+                <option :value="1">启用</option>
+                <option :value="0">禁用</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 题目编辑区 -->
+          <div class="form-row">
+            <div class="q-section-header">
+              <label>题目列表（共 {{ editingQuestions.length }} 题）</label>
+              <button type="button" class="btn-add-q" @click="addQuestion">+ 添加题目</button>
+            </div>
+          </div>
+
+          <div class="q-list">
+            <div v-for="(q, qi) in editingQuestions" :key="qi" class="q-item">
+              <div class="q-item-header">
+                <span class="q-index">第 {{ qi + 1 }} 题</span>
+                <div class="q-item-controls">
+                  <button type="button" class="q-btn q-btn-up" @click="moveQuestion(qi, -1)" :disabled="qi === 0">↑</button>
+                  <button type="button" class="q-btn q-btn-down" @click="moveQuestion(qi, 1)" :disabled="qi === editingQuestions.length - 1">↓</button>
+                  <button type="button" class="q-btn q-btn-del" @click="removeQuestion(qi)">✕</button>
+                </div>
+              </div>
+              <div class="form-row">
+                <label>题目内容 <span class="required">*</span></label>
+                <input v-model="q.text" type="text" class="form-input-admin" placeholder="题目内容" />
+              </div>
+              <div class="form-row-split">
+                <div class="form-row">
+                  <label>题目类型</label>
+                  <select v-model="q.type" class="form-input-admin">
+                    <option value="single">单选</option>
+                    <option value="multiple">多选</option>
+                    <option value="text">文本输入</option>
+                    <option value="scale">量表(1-5)</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label>分值（0=不计分）</label>
+                  <input v-model.number="q.score" type="number" min="0" max="100" class="form-input-admin" placeholder="题目满分值" />
+                </div>
+              </div>
+
+              <!-- 选项（单选/多选时显示） -->
+              <div v-if="q.type === 'single' || q.type === 'multiple'" class="options-area">
+                <div class="options-header">
+                  <label>选项</label>
+                  <button type="button" class="btn-add-opt" @click="addOption(qi)">+ 添加选项</button>
+                </div>
+                <div v-for="(opt, oi) in q.options" :key="oi" class="opt-row">
+                  <span class="opt-label">{{ String.fromCharCode(65 + oi) }}.</span>
+                  <input v-model="opt.label" type="text" class="form-input-admin opt-text" placeholder="选项文本" />
+                  <input v-model="opt.value" type="text" class="form-input-admin opt-val" placeholder="值(如A)" />
+                  <input v-model.number="opt.score" type="number" min="0" class="form-input-admin opt-score" placeholder="分" />
+                  <button type="button" class="q-btn q-btn-del" @click="removeOption(qi, oi)">✕</button>
+                </div>
+              </div>
+            </div>
+            <div v-if="editingQuestions.length === 0" class="empty-hint">暂无题目，请点击「添加题目」</div>
+          </div>
+        </div>
+
+        <div class="modal-actions-admin">
+          <button class="btn btn-primary" @click="saveQuestionnaire">保存问卷</button>
+          <button class="btn btn-refresh" @click="showQuestionnaireModal = false">取消</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 提示信息 -->
     <div v-if="toastMsg" class="toast" :class="toastType">{{ toastMsg }}</div>
   </div>
@@ -593,7 +744,11 @@ import {
 } from '@/services/healthContentApi'
 import {
   adminGetAll as adminGetAllQuestionnaires,
-  adminDelete as adminDeleteQuestionnaire
+  adminCreate as adminCreateQuestionnaire,
+  adminUpdate as adminUpdateQuestionnaire,
+  adminDelete as adminDeleteQuestionnaire,
+  adminToggleActive as adminToggleQuestionnaire,
+  adminGetAllResponses as adminGetQResponses
 } from '@/services/questionnaireApi'
 import {
   adminGetAllConcepts,
@@ -937,6 +1092,15 @@ const deleteContent = async (id) => {
 // ============ 问卷管理 ============
 const questionnaireList = ref([])
 const questionnaireLoading = ref(false)
+const showQuestionnaireModal = ref(false)
+const editingQuestionnaire = ref({})
+const editingQuestions = ref([])
+
+// 查看回答记录
+const viewingQuestionnaire = ref(null)
+const qResponseList = ref([])
+const qResponseLoading = ref(false)
+const qResponsePageInfo = ref({ pageNum: 1, pages: 1, total: 0 })
 
 const loadQuestionnaires = async () => {
   questionnaireLoading.value = true
@@ -950,11 +1114,148 @@ const loadQuestionnaires = async () => {
   }
 }
 
+const openQuestionnaireForm = (item) => {
+  if (item) {
+    editingQuestionnaire.value = { ...item }
+    // 解析题目 JSON
+    try {
+      const parsed = typeof item.questions === 'string'
+        ? JSON.parse(item.questions)
+        : (item.questions || [])
+      editingQuestions.value = parsed.map(q => ({
+        id: q.id || String(Date.now() + Math.random()),
+        text: q.text || q.label || '',
+        type: q.type || 'single',
+        score: q.score || 0,
+        options: q.options ? q.options.map(o => ({ label: o.label || o.text || '', value: o.value || '', score: o.score || 0 })) : []
+      }))
+    } catch {
+      editingQuestions.value = []
+    }
+  } else {
+    editingQuestionnaire.value = {
+      title: '',
+      description: '',
+      questionnaireType: 'LIFESTYLE',
+      isActive: 1
+    }
+    editingQuestions.value = []
+  }
+  showQuestionnaireModal.value = true
+}
+
+const addQuestion = () => {
+  editingQuestions.value.push({
+    id: String(Date.now()),
+    text: '',
+    type: 'single',
+    score: 0,
+    options: [
+      { label: '', value: 'A', score: 0 },
+      { label: '', value: 'B', score: 0 }
+    ]
+  })
+}
+
+const removeQuestion = (index) => {
+  editingQuestions.value.splice(index, 1)
+}
+
+const moveQuestion = (index, direction) => {
+  const arr = editingQuestions.value
+  const newIndex = index + direction
+  if (newIndex < 0 || newIndex >= arr.length) return
+  const tmp = arr[index]
+  arr[index] = arr[newIndex]
+  arr[newIndex] = tmp
+}
+
+const addOption = (qIndex) => {
+  const opts = editingQuestions.value[qIndex].options
+  const nextVal = String.fromCharCode(65 + opts.length)
+  opts.push({ label: '', value: nextVal, score: 0 })
+}
+
+const removeOption = (qIndex, optIndex) => {
+  editingQuestions.value[qIndex].options.splice(optIndex, 1)
+}
+
+const saveQuestionnaire = async () => {
+  const q = editingQuestionnaire.value
+  if (!q.title?.trim()) {
+    showToast('请填写问卷标题', 'error')
+    return
+  }
+  if (!q.questionnaireType) {
+    showToast('请选择问卷类型', 'error')
+    return
+  }
+  // 验证题目
+  for (let i = 0; i < editingQuestions.value.length; i++) {
+    if (!editingQuestions.value[i].text?.trim()) {
+      showToast(`第 ${i + 1} 题内容不能为空`, 'error')
+      return
+    }
+  }
+  // 序列化题目
+  q.questions = JSON.stringify(editingQuestions.value)
+  try {
+    if (q.id) {
+      await adminUpdateQuestionnaire(q.id, q)
+    } else {
+      await adminCreateQuestionnaire(q)
+    }
+    showToast('保存成功', 'success')
+    showQuestionnaireModal.value = false
+    loadQuestionnaires()
+  } catch {
+    showToast('保存失败', 'error')
+  }
+}
+
+const toggleQuestionnaireActive = async (q) => {
+  const action = q.isActive ? '禁用' : '启用'
+  if (!confirm(`确认${action}问卷「${q.title}」？`)) return
+  try {
+    await adminToggleQuestionnaire(q.id)
+    showToast(`问卷已${action}`, 'success')
+    loadQuestionnaires()
+  } catch {
+    showToast('操作失败', 'error')
+  }
+}
+
+const viewQuestionnaireResponses = (q) => {
+  viewingQuestionnaire.value = q
+  qResponseList.value = []
+  loadQuestionnaireResponses(1)
+}
+
+const loadQuestionnaireResponses = async (page = 1) => {
+  if (!viewingQuestionnaire.value) return
+  qResponseLoading.value = true
+  try {
+    const res = await adminGetQResponses(viewingQuestionnaire.value.id, page, 15)
+    const data = res.data || {}
+    qResponseList.value = data.list || []
+    qResponsePageInfo.value = {
+      pageNum: data.pageNum || 1,
+      pages: data.pages || 1,
+      total: data.total || 0
+    }
+  } catch {
+    showToast('加载回答记录失败', 'error')
+  } finally {
+    qResponseLoading.value = false
+  }
+}
+
 const deleteQuestionnaire = async (id) => {
-  if (!confirm('确认删除该问卷？')) return
+  if (!confirm('确认删除该问卷？删除后将无法恢复！')) return
   try {
     await adminDeleteQuestionnaire(id)
     showToast('问卷已删除', 'success')
+    if (viewingQuestionnaire.value?.id === id) viewingQuestionnaire.value = null
     loadQuestionnaires()
   } catch {
     showToast('删除失败', 'error')
@@ -969,6 +1270,11 @@ const parseQCount = (questionsJson) => {
   } catch {
     return 0
   }
+}
+
+const getQTypeLabel = (type) => {
+  const map = { LIFESTYLE: '生活方式', SYMPTOM: '症状自评', MENTAL: '心理健康', DIET: '饮食习惯', EXERCISE: '运动情况' }
+  return map[type] || type || '-'
 }
 
 // ============ 知识图谱管理 ============
@@ -1094,6 +1400,14 @@ const formatDate = (date) => {
   if (!date) return '-'
   return new Date(date).toLocaleDateString('zh-CN', {
     year: 'numeric', month: '2-digit', day: '2-digit'
+  })
+}
+
+const formatDateTime = (date) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleString('zh-CN', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit'
   })
 }
 
@@ -1459,6 +1773,134 @@ onMounted(async () => {
   from { opacity: 0; transform: translateX(-50%) translateY(20px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* 问卷弹窗 */
+.modal-q { max-width: 860px; }
+
+/* 表单两列布局 */
+.form-row-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* 必填标记 */
+.required { color: #e74c3c; margin-left: 2px; }
+
+/* 题目分组标题 */
+.q-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0 2px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 6px;
+}
+
+/* 添加题目按钮 */
+.btn-add-q {
+  padding: 5px 14px;
+  border: 1px dashed #667eea;
+  border-radius: 6px;
+  background: #f5f7ff;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.btn-add-q:hover { background: #667eea; color: white; }
+
+/* 题目列表区域 */
+.q-list { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; max-height: 52vh; overflow-y: auto; padding-right: 4px; }
+
+/* 单道题目卡片 */
+.q-item {
+  border: 1px solid #e8ecff;
+  border-radius: 8px;
+  padding: 14px 16px 10px;
+  background: #fafbff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.q-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.q-index {
+  font-size: 13px;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.q-item-controls { display: flex; gap: 5px; }
+
+/* 题目操作小按钮 */
+.q-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.q-btn:hover:not(:disabled) { border-color: #667eea; color: #667eea; }
+.q-btn:disabled { color: #ccc; cursor: not-allowed; }
+.q-btn-del:hover:not(:disabled) { border-color: #e74c3c; color: #e74c3c; }
+
+/* 选项区域 */
+.options-area {
+  background: #f0f2ff;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 4px;
+}
+
+.options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.options-header label { font-size: 12px; color: #666; font-weight: 500; }
+
+/* 添加选项按钮 */
+.btn-add-opt {
+  padding: 3px 10px;
+  border: 1px dashed #667eea;
+  border-radius: 4px;
+  background: white;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.btn-add-opt:hover { background: #667eea; color: white; }
+
+/* 选项行 */
+.opt-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+}
+
+.opt-label { font-size: 13px; font-weight: 600; color: #667eea; min-width: 18px; }
+.opt-text { flex: 3 !important; }
+.opt-val { flex: 1 !important; min-width: 48px; max-width: 70px; }
+.opt-score { flex: 1 !important; min-width: 48px; max-width: 65px; }
+.opt-text, .opt-val, .opt-score { padding: 5px 8px !important; font-size: 12px !important; }
 
 /* ECharts 饼图 */
 .echarts-box-admin {

@@ -274,8 +274,8 @@ start_mysql() {
         return 1
     fi
 
-    # 启动 Docker Compose
-    docker compose up -d
+    # 启动 Docker Compose (仅 MySQL)
+    docker compose up -d mysql
 
     if [ $? -eq 0 ]; then
         print_success "MySQL 容器已启动"
@@ -295,6 +295,65 @@ start_mysql() {
         return 1
     else
         print_error "启动 MySQL 容器失败"
+        return 1
+    fi
+}
+
+###############################################################################
+# 启动 Redis Docker 容器
+###############################################################################
+
+start_redis() {
+    print_status "启动 Redis Docker 容器..."
+
+    # 检查 Docker daemon 是否运行
+    if ! docker info &> /dev/null; then
+        print_error "Docker 未运行，请先启动 Docker"
+        return 1
+    fi
+
+    # 检查容器是否已存在
+    if docker ps -a --format '{{.Names}}' | grep -q '^biyesheji-redis$'; then
+        print_warning "Redis 容器已存在"
+
+        if docker ps --format '{{.Names}}' | grep -q '^biyesheji-redis$'; then
+            print_success "Redis 容器已在运行"
+            return 0
+        else
+            print_status "启动现有的 Redis 容器..."
+            docker start biyesheji-redis
+            print_success "Redis 容器已启动"
+            return 0
+        fi
+    fi
+
+    # 检查 docker-compose.yml 是否存在
+    if [ ! -f "docker-compose.yml" ]; then
+        print_error "docker-compose.yml 文件不存在"
+        return 1
+    fi
+
+    # 启动 Docker Compose (仅 Redis)
+    docker compose up -d redis
+
+    if [ $? -eq 0 ]; then
+        print_success "Redis 容器已启动"
+
+        # 等待 Redis 就绪
+        print_status "等待 Redis 就绪..."
+        for i in {1..15}; do
+            if docker exec biyesheji-redis redis-cli ping &> /dev/null; then
+                print_success "Redis 已就绪"
+                return 0
+            fi
+            echo -n "."
+            sleep 1
+        done
+
+        print_warning "Redis 连接超时，请检查"
+        return 1
+    else
+        print_error "启动 Redis 容器失败"
         return 1
     fi
 }
@@ -360,6 +419,7 @@ show_completion_info() {
   ✓ Maven 已安装
   ✓ Docker 和 Docker Compose 已安装
   ✓ MySQL Docker 容器已启动
+  ✓ Redis Docker 容器已启动
   ✓ 前端依赖已安装
   ✓ 后端依赖已安装
 
@@ -382,6 +442,10 @@ show_completion_info() {
   - Database: biyesheji
   - Username: root
   - Password: root
+
+🔴 Redis 信息:
+  - Host: localhost
+  - Port: 6379
 
 ✨ 完成！开始开发吧！
 
@@ -419,6 +483,10 @@ main() {
 
     # 启动 MySQL
     start_mysql || print_warning "MySQL 启动可能失败"
+    echo ""
+
+    # 启动 Redis
+    start_redis || print_warning "Redis 启动可能失败"
     echo ""
 
     # 安装依赖

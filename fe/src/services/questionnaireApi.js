@@ -52,3 +52,13 @@ export const adminDelete = (id) => {
   return apiClient.delete(`/v1/questionnaires/admin/${id}`)
 }
 
+export const adminToggleActive = (id) => {
+  return apiClient.put(`/v1/questionnaires/admin/${id}/toggle-active`)
+}
+
+export const adminGetAllResponses = (questionnaireId, pageNum = 1, pageSize = 15) => {
+  return apiClient.get('/v1/questionnaires/admin/responses', {
+    params: { questionnaireId: questionnaireId || undefined, pageNum, pageSize }
+  })
+}
+

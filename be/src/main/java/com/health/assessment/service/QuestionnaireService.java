@@ -113,6 +113,34 @@ public class QuestionnaireService {
         log.info("删除问卷: id={}", id);
     }
 
+    /**
+     * 切换问卷启用/禁用状态（管理员）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = "questionnaires", allEntries = true)
+    public Questionnaire toggleActive(Long id) {
+        Questionnaire existing = questionnaireMapper.selectById(id);
+        if (existing == null) {
+            throw new ResourceNotFoundException("问卷不存在: " + id);
+        }
+        int newStatus = (existing.getIsActive() != null && existing.getIsActive() == 1) ? 0 : 1;
+        questionnaireMapper.updateActiveStatus(id, newStatus);
+        log.info("切换问卷状态: id={}, isActive={}", id, newStatus);
+        return questionnaireMapper.selectById(id);
+    }
+
+    /**
+     * 管理员分页查询所有问卷回答记录
+     *
+     * @param questionnaireId 可选，按问卷ID过滤
+     */
+    public PageInfo<QuestionnaireResponse> adminGetAllResponses(
+            Long questionnaireId, int pageNum, int pageSize) {
+        PageHelper.startPage(pageNum, pageSize);
+        List<QuestionnaireResponse> list = questionnaireMapper.selectAllResponses(questionnaireId);
+        return new PageInfo<>(list);
+    }
+
     // ==================== 问卷回答相关 ====================
 
     /**

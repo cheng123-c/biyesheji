@@ -102,5 +102,35 @@ public interface MedicalRecordMapper {
      */
     @Select("SELECT COUNT(*) FROM t_medical_record WHERE user_id = #{userId}")
     Integer countByUserId(Long userId);
+
+    /**
+     * 分页查询用户医疗记录（支持 recordType/keyword 过滤）
+     * （定义在 MedicalRecordMapper.xml 中，使用 resultMap 映射字段）
+     */
+    List<MedicalRecord> selectByUserIdWithPage(@Param("userId") Long userId,
+                                               @Param("recordType") String recordType,
+                                               @Param("keyword") String keyword,
+                                               @Param("offset") int offset,
+                                               @Param("limit") int limit);
+
+    /**
+     * 统计用户医疗记录数量（支持 recordType/keyword 过滤）
+     * （定义在 MedicalRecordMapper.xml 中）
+     */
+    Integer countByUserIdWithCondition(@Param("userId") Long userId,
+                                       @Param("recordType") String recordType,
+                                       @Param("keyword") String keyword);
+
+    /**
+     * 按类型统计医疗记录数量
+     * （定义在 MedicalRecordMapper.xml 中）
+     */
+    List<java.util.Map<String, Object>> countByType(@Param("userId") Long userId);
+
+    /**
+     * 查询最近的医疗记录
+     * （定义在 MedicalRecordMapper.xml 中，使用 resultMap 映射字段）
+     */
+    List<MedicalRecord> selectRecentByUserId(@Param("userId") Long userId, @Param("limit") int limit);
 }
 

@@ -5,11 +5,13 @@ import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Result;
 import org.apache.ibatis.annotations.Results;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -116,27 +118,37 @@ public interface UserMapper {
 
     /**
      * 查询所有活跃用户
+     * （定义在 UserMapper.xml 中，使用 resultMap 映射字段）
      */
-    @Select("SELECT * FROM t_user WHERE status = 'ACTIVE' AND is_deleted = 0 ORDER BY created_at DESC")
-    @Results({
-            @Result(column = "id", property = "id", id = true),
-            @Result(column = "username", property = "username"),
-            @Result(column = "phone", property = "phone"),
-            @Result(column = "email", property = "email"),
-            @Result(column = "password_hash", property = "passwordHash"),
-            @Result(column = "real_name", property = "realName"),
-            @Result(column = "age", property = "age"),
-            @Result(column = "gender", property = "gender"),
-            @Result(column = "avatar_url", property = "avatarUrl"),
-            @Result(column = "bio", property = "bio"),
-            @Result(column = "status", property = "status"),
-            @Result(column = "role", property = "role"),
-            @Result(column = "created_at", property = "createdAt"),
-            @Result(column = "updated_at", property = "updatedAt"),
-            @Result(column = "deleted_at", property = "deletedAt"),
-            @Result(column = "is_deleted", property = "isDeleted")
-    })
     List<User> selectAllActiveUsers();
+
+    /**
+     * 根据用户名模糊查询用户
+     * （定义在 UserMapper.xml 中，使用 resultMap 映射字段）
+     */
+    List<User> selectByUsernamePattern(@Param("username") String username);
+
+    /**
+     * 根据条件查询用户（支持 username/email/phone/status/gender 过滤）
+     * （定义在 UserMapper.xml 中，使用 resultMap 映射字段）
+     */
+    List<User> selectByCondition(@Param("username") String username,
+                                 @Param("email") String email,
+                                 @Param("phone") String phone,
+                                 @Param("status") String status,
+                                 @Param("gender") String gender);
+
+    /**
+     * 统计活跃用户数量
+     * （定义在 UserMapper.xml 中）
+     */
+    Integer countUsers();
+
+    /**
+     * 统计指定时间之后的新用户数量
+     * （定义在 UserMapper.xml 中）
+     */
+    Integer countNewUsersSince(@Param("since") LocalDateTime since);
 
     /**
      * 新增用户

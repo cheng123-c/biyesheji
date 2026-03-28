@@ -30,19 +30,6 @@ CREATE TABLE IF NOT EXISTS t_user (
     KEY idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户基本信息表';
 
--- 用户设备绑定表
-CREATE TABLE IF NOT EXISTS t_user_device (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-    user_id BIGINT NOT NULL COMMENT '用户ID',
-    device_id VARCHAR(100) UNIQUE NOT NULL COMMENT '设备ID',
-    device_type VARCHAR(50) COMMENT '设备类型',
-    device_name VARCHAR(100) COMMENT '设备名称',
-    bind_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '绑定时间',
-    last_sync_time TIMESTAMP COMMENT '最后同步时间',
-    KEY idx_user_id (user_id),
-    KEY idx_device_id (device_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户设备绑定表';
-
 -- 角色表
 CREATE TABLE IF NOT EXISTS t_role (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
@@ -183,8 +170,7 @@ CREATE TABLE IF NOT EXISTS t_ai_assessment (
     confidence_score DECIMAL(5, 2) COMMENT '置信度',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     KEY idx_user_id (user_id),
-    KEY idx_assessment_date (assessment_date),
-    UNIQUE KEY unique_user_date (user_id, assessment_date)
+    KEY idx_assessment_date (assessment_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI评估结果表';
 
 -- AI 模型版本控制表
@@ -213,8 +199,7 @@ CREATE TABLE IF NOT EXISTS t_assessment_report (
     ai_analysis TEXT COMMENT 'AI分析',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     KEY idx_user_id (user_id),
-    KEY idx_assessment_date (assessment_date),
-    UNIQUE KEY unique_user_date (user_id, assessment_date)
+    KEY idx_assessment_date (assessment_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='评测报告表';
 
 -- ===================== 知识图谱表 =====================
@@ -384,7 +369,7 @@ INSERT INTO t_data_dictionary (data_type, display_name, unit, min_value, max_val
 ('heart_rate', '心率', 'bpm', 40, 200, '60-100', '每分钟心跳次数'),
 ('blood_pressure_systolic', '收缩压', 'mmHg', 60, 200, '<120', '血压收缩压'),
 ('blood_pressure_diastolic', '舒张压', 'mmHg', 30, 130, '<80', '血压舒张压'),
-('blood_glucose', '血糖', 'mg/dL', 50, 400, '70-100', '空腹血糖'),
+('blood_glucose', '血糖', 'mmol/L', 1, 30, '3.9-6.1', '空腹血糖'),
 ('blood_oxygen', '血氧', '%', 80, 100, '95-100', '血液氧饱和度'),
 ('body_temperature', '体温', '°C', 35, 42, '36.5-37.5', '体表温度'),
 ('weight', '体重', 'kg', 20, 200, '根据身高计算', '体重'),
@@ -511,6 +496,114 @@ ON DUPLICATE KEY UPDATE confidence_score=VALUES(confidence_score);
 -- 如果 t_user 表中尚未有 role 字段，执行以下语句添加（幂等操作）
 -- ALTER TABLE t_user ADD COLUMN IF NOT EXISTS role ENUM('USER', 'ADMIN') DEFAULT 'USER' COMMENT '用户角色' AFTER status;
 -- UPDATE t_user SET role = 'USER' WHERE role IS NULL;
+
+-- ===================== 测试数据 ====================
+INSERT INTO t_user (username, phone, email, password_hash, real_name, age, gender, bio, status, role) VALUES
+('yangkainan', '18234425930', '602533622@qq.com',
+ '$2a$10$fRi9PF.xTNEgXNHFTmqLCedZSzOakbTwgJxbb6FtTpNZ/u/v1rtKi',
+ 'yangkainan', 25, 'UNKNOWN', null, 'ACTIVE', 'USER')
+
+ON DUPLICATE KEY UPDATE real_name=VALUES(real_name);
+
+INSERT INTO t_health_data (user_id, data_type, data_value, unit, data_source, collected_at) VALUES
+-- ========== 用户1 身高体重（只记录一次）==========
+(1, 'height',  172.00, 'cm',    'manual', DATE_SUB(NOW(), INTERVAL 30 DAY)),
+(1, 'weight',   78.50, 'kg',    'manual', DATE_SUB(NOW(), INTERVAL 30 DAY)),
+(1, 'weight',   78.20, 'kg',    'manual', DATE_SUB(NOW(), INTERVAL 15 DAY)),
+(1, 'weight',   77.80, 'kg',    'manual', DATE_SUB(NOW(), INTERVAL 1  DAY)),
+
+-- ========== 用户1 心率（每天早晨，正常偏快，运动后略高）==========
+(1,'heart_rate', 78, 'bpm','device', DATE_SUB(NOW(), INTERVAL 30 DAY)),
+(1,'heart_rate', 82, 'bpm','device', DATE_SUB(NOW(), INTERVAL 29 DAY)),
+(1,'heart_rate', 75, 'bpm','device', DATE_SUB(NOW(), INTERVAL 28 DAY)),
+(1,'heart_rate', 80, 'bpm','device', DATE_SUB(NOW(), INTERVAL 27 DAY)),
+(1,'heart_rate', 77, 'bpm','device', DATE_SUB(NOW(), INTERVAL 26 DAY)),
+(1,'heart_rate', 83, 'bpm','device', DATE_SUB(NOW(), INTERVAL 25 DAY)),
+(1,'heart_rate', 79, 'bpm','device', DATE_SUB(NOW(), INTERVAL 24 DAY)),
+(1,'heart_rate', 76, 'bpm','device', DATE_SUB(NOW(), INTERVAL 23 DAY)),
+(1,'heart_rate', 81, 'bpm','device', DATE_SUB(NOW(), INTERVAL 22 DAY)),
+(1,'heart_rate', 74, 'bpm','device', DATE_SUB(NOW(), INTERVAL 21 DAY)),
+(1,'heart_rate', 78, 'bpm','device', DATE_SUB(NOW(), INTERVAL 20 DAY)),
+(1,'heart_rate', 80, 'bpm','device', DATE_SUB(NOW(), INTERVAL 19 DAY)),
+(1,'heart_rate', 75, 'bpm','device', DATE_SUB(NOW(), INTERVAL 18 DAY)),
+(1,'heart_rate', 82, 'bpm','device', DATE_SUB(NOW(), INTERVAL 17 DAY)),
+(1,'heart_rate', 77, 'bpm','device', DATE_SUB(NOW(), INTERVAL 16 DAY)),
+(1,'heart_rate', 79, 'bpm','device', DATE_SUB(NOW(), INTERVAL 15 DAY)),
+(1,'heart_rate', 76, 'bpm','device', DATE_SUB(NOW(), INTERVAL 14 DAY)),
+(1,'heart_rate', 84, 'bpm','device', DATE_SUB(NOW(), INTERVAL 13 DAY)),
+(1,'heart_rate', 78, 'bpm','device', DATE_SUB(NOW(), INTERVAL 12 DAY)),
+(1,'heart_rate', 73, 'bpm','device', DATE_SUB(NOW(), INTERVAL 11 DAY)),
+(1,'heart_rate', 80, 'bpm','device', DATE_SUB(NOW(), INTERVAL 10 DAY)),
+(1,'heart_rate', 77, 'bpm','device', DATE_SUB(NOW(), INTERVAL 9  DAY)),
+(1,'heart_rate', 75, 'bpm','device', DATE_SUB(NOW(), INTERVAL 8  DAY)),
+(1,'heart_rate', 82, 'bpm','device', DATE_SUB(NOW(), INTERVAL 7  DAY)),
+(1,'heart_rate', 79, 'bpm','device', DATE_SUB(NOW(), INTERVAL 6  DAY)),
+(1,'heart_rate', 76, 'bpm','device', DATE_SUB(NOW(), INTERVAL 5  DAY)),
+(1,'heart_rate', 81, 'bpm','device', DATE_SUB(NOW(), INTERVAL 4  DAY)),
+(1,'heart_rate', 78, 'bpm','device', DATE_SUB(NOW(), INTERVAL 3  DAY)),
+(1,'heart_rate', 74, 'bpm','device', DATE_SUB(NOW(), INTERVAL 2  DAY)),
+(1,'heart_rate', 80, 'bpm','device', DATE_SUB(NOW(), INTERVAL 1  DAY)),
+
+-- ========== 用户1 收缩压（偏高，呈轻度上升趋势）==========
+(1,'blood_pressure_systolic', 122,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 30 DAY)),
+(1,'blood_pressure_systolic', 125,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 28 DAY)),
+(1,'blood_pressure_systolic', 121,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 26 DAY)),
+(1,'blood_pressure_systolic', 127,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 24 DAY)),
+(1,'blood_pressure_systolic', 124,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 22 DAY)),
+(1,'blood_pressure_systolic', 129,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 20 DAY)),
+(1,'blood_pressure_systolic', 126,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 18 DAY)),
+(1,'blood_pressure_systolic', 131,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 16 DAY)),
+(1,'blood_pressure_systolic', 128,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 14 DAY)),
+(1,'blood_pressure_systolic', 133,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 12 DAY)),
+(1,'blood_pressure_systolic', 130,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 10 DAY)),
+(1,'blood_pressure_systolic', 135,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 8  DAY)),
+(1,'blood_pressure_systolic', 132,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 6  DAY)),
+(1,'blood_pressure_systolic', 136,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 4  DAY)),
+(1,'blood_pressure_systolic', 134,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 2  DAY)),
+
+-- ========== 用户1 舒张压 ==========
+(1,'blood_pressure_diastolic', 78,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 30 DAY)),
+(1,'blood_pressure_diastolic', 80,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 28 DAY)),
+(1,'blood_pressure_diastolic', 77,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 26 DAY)),
+(1,'blood_pressure_diastolic', 82,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 24 DAY)),
+(1,'blood_pressure_diastolic', 79,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 22 DAY)),
+(1,'blood_pressure_diastolic', 83,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 20 DAY)),
+(1,'blood_pressure_diastolic', 81,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 18 DAY)),
+(1,'blood_pressure_diastolic', 84,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 16 DAY)),
+(1,'blood_pressure_diastolic', 82,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 14 DAY)),
+(1,'blood_pressure_diastolic', 85,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 12 DAY)),
+(1,'blood_pressure_diastolic', 83,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 10 DAY)),
+(1,'blood_pressure_diastolic', 86,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 8  DAY)),
+(1,'blood_pressure_diastolic', 84,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 6  DAY)),
+(1,'blood_pressure_diastolic', 87,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 4  DAY)),
+(1,'blood_pressure_diastolic', 85,'mmHg','manual', DATE_SUB(NOW(), INTERVAL 2  DAY)),
+
+-- ========== 用户1 血糖（正常范围内，空腹）==========
+(1,'blood_glucose', 5.20,'mmol/L','manual', DATE_SUB(NOW(), INTERVAL 30 DAY)),
+(1,'blood_glucose', 5.40,'mmol/L','manual', DATE_SUB(NOW(), INTERVAL 25 DAY)),
+(1,'blood_glucose', 5.10,'mmol/L','manual', DATE_SUB(NOW(), INTERVAL 20 DAY)),
+(1,'blood_glucose', 5.30,'mmol/L','manual', DATE_SUB(NOW(), INTERVAL 15 DAY)),
+(1,'blood_glucose', 5.50,'mmol/L','manual', DATE_SUB(NOW(), INTERVAL 10 DAY)),
+(1,'blood_glucose', 5.20,'mmol/L','manual', DATE_SUB(NOW(), INTERVAL 5  DAY)),
+(1,'blood_glucose', 5.40,'mmol/L','manual', DATE_SUB(NOW(), INTERVAL 1  DAY)),
+
+-- ========== 用户1 血氧（正常）==========
+(1,'blood_oxygen', 98,'%','device', DATE_SUB(NOW(), INTERVAL 30 DAY)),
+(1,'blood_oxygen', 97,'%','device', DATE_SUB(NOW(), INTERVAL 25 DAY)),
+(1,'blood_oxygen', 98,'%','device', DATE_SUB(NOW(), INTERVAL 20 DAY)),
+(1,'blood_oxygen', 99,'%','device', DATE_SUB(NOW(), INTERVAL 15 DAY)),
+(1,'blood_oxygen', 97,'%','device', DATE_SUB(NOW(), INTERVAL 10 DAY)),
+(1,'blood_oxygen', 98,'%','device', DATE_SUB(NOW(), INTERVAL 5  DAY)),
+(1,'blood_oxygen', 98,'%','device', DATE_SUB(NOW(), INTERVAL 1  DAY)),
+
+-- ========== 用户1 体温（正常）==========
+(1,'body_temperature', 36.6,'°C','device', DATE_SUB(NOW(), INTERVAL 30 DAY)),
+(1,'body_temperature', 36.7,'°C','device', DATE_SUB(NOW(), INTERVAL 25 DAY)),
+(1,'body_temperature', 36.5,'°C','device', DATE_SUB(NOW(), INTERVAL 20 DAY)),
+(1,'body_temperature', 36.8,'°C','device', DATE_SUB(NOW(), INTERVAL 15 DAY)),
+(1,'body_temperature', 36.6,'°C','device', DATE_SUB(NOW(), INTERVAL 10 DAY)),
+(1,'body_temperature', 37.0,'°C','device', DATE_SUB(NOW(), INTERVAL 5  DAY)),
+(1,'body_temperature', 36.7,'°C','device', DATE_SUB(NOW(), INTERVAL 1  DAY));
 
 -- 数据库初始化完成
 SELECT '数据库初始化完成！' AS status;

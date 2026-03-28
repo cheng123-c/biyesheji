@@ -130,5 +130,41 @@ public interface InterventionPlanMapper {
      */
     @Select("SELECT COUNT(*) FROM t_intervention_plan WHERE user_id = #{userId}")
     Integer countByUserId(Long userId);
+
+    /**
+     * 分页查询用户干预方案（支持 planType/status 过滤）
+     * （定义在 InterventionPlanMapper.xml 中，使用 resultMap 映射字段）
+     */
+    List<InterventionPlan> selectByUserIdWithPage(@Param("userId") Long userId,
+                                                  @Param("planType") String planType,
+                                                  @Param("status") String status,
+                                                  @Param("offset") int offset,
+                                                  @Param("limit") int limit);
+
+    /**
+     * 统计用户干预方案数量（支持 planType/status 过滤）
+     * （定义在 InterventionPlanMapper.xml 中）
+     */
+    Integer countByUserIdWithCondition(@Param("userId") Long userId,
+                                       @Param("planType") String planType,
+                                       @Param("status") String status);
+
+    /**
+     * 查询即将到期的干预方案
+     * （定义在 InterventionPlanMapper.xml 中，使用 resultMap 映射字段）
+     */
+    List<InterventionPlan> selectExpiringSoon(@Param("daysAhead") int daysAhead);
+
+    /**
+     * 按状态和类型统计干预方案数量
+     * （定义在 InterventionPlanMapper.xml 中）
+     */
+    List<java.util.Map<String, Object>> countByStatusAndType(@Param("userId") Long userId);
+
+    /**
+     * 批量将已到期方案状态更新为 COMPLETED
+     * （定义在 InterventionPlanMapper.xml 中）
+     */
+    int batchExpirePlans();
 }
 

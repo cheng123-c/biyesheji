@@ -158,7 +158,7 @@
               <option value="heart_rate">心率 (bpm)</option>
               <option value="blood_pressure_systolic">收缩压 (mmHg)</option>
               <option value="blood_pressure_diastolic">舒张压 (mmHg)</option>
-              <option value="blood_glucose">血糖 (mg/dL)</option>
+              <option value="blood_glucose">血糖 (mmol/L)</option>
               <option value="blood_oxygen">血氧 (%)</option>
               <option value="body_temperature">体温 (°C)</option>
               <option value="weight">体重 (kg)</option>
@@ -332,13 +332,14 @@ const loadTrendData = async () => {
     const startTime = toLocalDateTimeStr(new Date(Date.now() - selectedDays.value * 24 * 60 * 60 * 1000))
     const response = await getHealthDataTrend(selectedType.value, startTime, endTime)
     trendData.value = (response.data || []).reverse()
-    await nextTick()
-    renderChart()
   } catch (err) {
     console.error('加载趋势数据失败:', err)
     trendData.value = []
   } finally {
+    // 必须先关闭 loading，让 v-else 下的 chart 容器渲染到 DOM，再调用 renderChart
     trendLoading.value = false
+    await nextTick()
+    renderChart()
   }
 }
 
@@ -346,9 +347,18 @@ const loadTrendData = async () => {
 const renderChart = () => {
   if (!chartRef.value || trendData.value.length === 0) return
 
-  if (!chartInstance) {
-    chartInstance = echarts.init(chartRef.value)
+  // 若容器尚无宽高（DOM 刚挂载），稍后重试
+  if (chartRef.value.clientWidth === 0) {
+    setTimeout(renderChart, 50)
+    return
   }
+
+  // 若已有实例但容器元素发生变化，先销毁重建
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+  chartInstance = echarts.init(chartRef.value)
 
   const typeName = getDataTypeName(selectedType.value)
   const unit = getUnit(selectedType.value)
@@ -541,7 +551,7 @@ const getUnit = (type) => {
     heart_rate: 'bpm',
     blood_pressure_systolic: 'mmHg',
     blood_pressure_diastolic: 'mmHg',
-    blood_glucose: 'mg/dL',
+    blood_glucose: 'mmol/L',
     blood_oxygen: '%',
     body_temperature: '°C',
     weight: 'kg',
@@ -554,7 +564,7 @@ const normalRanges = {
   heart_rate: { min: 60, max: 100 },
   blood_pressure_systolic: { min: 90, max: 120 },
   blood_pressure_diastolic: { min: 60, max: 80 },
-  blood_glucose: { min: 70, max: 100 },
+  blood_glucose: { min: 3.9, max: 6.1 },
   blood_oxygen: { min: 95, max: 100 },
   body_temperature: { min: 36.0, max: 37.5 },
 }
@@ -576,22 +586,35 @@ const getValueStatusText = (item) => {
   return '正常'
 }
 
+// 将后端 "yyyy-MM-dd HH:mm:ss" 格式安全解析为 Date
+const parseDate = (time) => {
+  if (!time) return null
+  const normalized = typeof time === 'string' ? time.replace(' ', 'T') : time
+  const d = new Date(normalized)
+  return isNaN(d.getTime()) ? null : d
+}
+
 const formatTime = (time) => {
-  if (!time) return '-'
-  return new Date(time).toLocaleString('zh-CN', {
+  const d = parseDate(time)
+  if (!d) return time || '-'
+  return d.toLocaleString('zh-CN', {
     month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit'
   })
 }
 
 const formatDate = (time) => {
-  if (!time) return '-'
-  return new Date(time).toLocaleDateString('zh-CN')
+  const d = parseDate(time)
+  if (!d) return time || '-'
+  return d.toLocaleDateString('zh-CN')
 }
 
 const formatShortDate = (time) => {
   if (!time) return ''
-  const d = new Date(time)
+  // 后端返回格式为 "2026-03-27 21:14:18"，需将空格替换为 T 才能在所有浏览器正确解析
+  const normalized = typeof time === 'string' ? time.replace(' ', 'T') : time
+  const d = new Date(normalized)
+  if (isNaN(d.getTime())) return String(time).slice(5, 10) // 兜底：直接截取 MM-dd
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 </script>

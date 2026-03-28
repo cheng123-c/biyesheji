@@ -20,7 +20,7 @@
         <div class="evaluate-icon">🧠</div>
         <div class="evaluate-info">
           <h2>发起 AI 健康评测</h2>
-          <p>基于您已上传的健康数据，由 DeepSeek AI 进行综合分析，生成个性化健康报告。每天可进行一次评测。</p>
+          <p>基于您已上传的健康数据，由 DeepSeek AI 进行综合分析，生成个性化健康报告。</p>
           <div v-if="assessmentCount !== null" class="count-info">
             今年已评测 <strong>{{ assessmentCount }}</strong> 次
           </div>

@@ -34,7 +34,7 @@ public class DeepSeekService {
     @Value("${deepseek.api.endpoint:https://api.deepseek.com/v1}")
     private String apiEndpoint;
 
-    @Value("${deepseek.api.key:}")
+    @Value("${deepseek.api.key:sk-92d4cdcb2328467db15a9386b6290f45}")
     private String apiKey;
 
     @Value("${deepseek.api.model:deepseek-chat}")
@@ -108,6 +108,7 @@ public class DeepSeekService {
     private String callDeepSeekAPI(String prompt) throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        apiKey = "sk-92d4cdcb2328467db15a9386b6290f45";
         headers.setBearerAuth(apiKey);
 
         ObjectNode requestBody = objectMapper.createObjectNode();
@@ -376,11 +377,11 @@ public class DeepSeekService {
 
             if (dataNode.has("blood_glucose")) {
                 double bg = dataNode.path("blood_glucose").path("latest").asDouble(0);
-                if (bg >= 126) {
+                if (bg >= 7.0) {
                     healthScore -= 20;
                     riskLevel = "HIGH";
                     summary += " 血糖偏高，建议专业检查。";
-                } else if (bg >= 100) {
+                } else if (bg >= 6.1) {
                     healthScore -= 10;
                     if ("LOW".equals(riskLevel)) riskLevel = "MEDIUM";
                     summary += " 血糖轻度偏高，需要控制饮食。";

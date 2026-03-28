@@ -17,6 +17,7 @@
         <result column="avatar_url" property="avatarUrl"/>
         <result column="bio" property="bio"/>
         <result column="status" property="status"/>
+        <result column="role" property="role"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
         <result column="deleted_at" property="deletedAt"/>

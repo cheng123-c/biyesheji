@@ -167,5 +167,35 @@ public interface NotificationMapper {
     @Delete("DELETE FROM t_notification WHERE created_at < #{beforeTime}")
     int deleteOldNotifications(LocalDateTime beforeTime);
 
+    /**
+     * 分页查询用户通知（支持 notificationType/readStatus 过滤）
+     * （定义在 NotificationMapper.xml 中，使用 resultMap 映射字段）
+     */
+    List<Notification> selectByUserIdWithPage(@Param("userId") Long userId,
+                                              @Param("notificationType") String notificationType,
+                                              @Param("readStatus") Integer readStatus,
+                                              @Param("offset") int offset,
+                                              @Param("limit") int limit);
+
+    /**
+     * 统计用户通知数量（支持 notificationType/readStatus 过滤）
+     * （定义在 NotificationMapper.xml 中）
+     */
+    Integer countByUserId(@Param("userId") Long userId,
+                          @Param("notificationType") String notificationType,
+                          @Param("readStatus") Integer readStatus);
+
+    /**
+     * 批量标记通知为已读
+     * （定义在 NotificationMapper.xml 中）
+     */
+    int batchMarkAsRead(@Param("ids") List<Long> ids);
+
+    /**
+     * 按类型统计通知数量及未读数
+     * （定义在 NotificationMapper.xml 中）
+     */
+    List<java.util.Map<String, Object>> countByType(@Param("userId") Long userId);
+
 }
 

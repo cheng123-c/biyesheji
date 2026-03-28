@@ -124,5 +124,29 @@ public interface HealthSuggestionMapper {
      */
     @Select("SELECT COUNT(*) FROM t_health_suggestion WHERE user_id = #{userId}")
     Integer countByUserId(Long userId);
+
+    /**
+     * 分页查询用户健康建议（支持 suggestionType/priority 过滤）
+     * （定义在 HealthSuggestionMapper.xml 中，使用 resultMap 映射字段）
+     */
+    List<HealthSuggestion> selectByUserIdWithPage(@Param("userId") Long userId,
+                                                  @Param("suggestionType") String suggestionType,
+                                                  @Param("priority") String priority,
+                                                  @Param("offset") int offset,
+                                                  @Param("limit") int limit);
+
+    /**
+     * 统计用户健康建议数量（支持 suggestionType/priority 过滤）
+     * （定义在 HealthSuggestionMapper.xml 中）
+     */
+    Integer countByUserIdWithCondition(@Param("userId") Long userId,
+                                       @Param("suggestionType") String suggestionType,
+                                       @Param("priority") String priority);
+
+    /**
+     * 按类型和优先级统计建议数量
+     * （定义在 HealthSuggestionMapper.xml 中）
+     */
+    List<java.util.Map<String, Object>> countByTypeAndPriority(@Param("userId") Long userId);
 }
 

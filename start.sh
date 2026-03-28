@@ -17,6 +17,47 @@ echo -e "${BLUE}    毕业设计项目 - 生产启动${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
+# Ensure Docker containers are running
+ensure_containers_running() {
+    echo -e "${YELLOW}检查 Docker 容器状态...${NC}"
+
+    # Check if Docker is running
+    if ! docker info &> /dev/null; then
+        echo -e "${RED}✗ Docker 未运行，请先启动 Docker${NC}"
+        return 1
+    fi
+
+    # Check MySQL container
+    if docker ps --format '{{.Names}}' | grep -q '^biyesheji-mysql$'; then
+        echo -e "${GREEN}✓ MySQL 容器已在运行${NC}"
+    elif docker ps -a --format '{{.Names}}' | grep -q '^biyesheji-mysql$'; then
+        echo -e "${YELLOW}启动 MySQL 容器...${NC}"
+        docker start biyesheji-mysql > /dev/null
+        echo -e "${GREEN}✓ MySQL 容器已启动${NC}"
+    else
+        echo -e "${YELLOW}创建并启动 MySQL 容器...${NC}"
+        cd "$PROJECT_DIR"
+        docker compose up -d mysql > /dev/null
+        echo -e "${GREEN}✓ MySQL 容器已启动${NC}"
+    fi
+
+    # Check Redis container
+    if docker ps --format '{{.Names}}' | grep -q '^biyesheji-redis$'; then
+        echo -e "${GREEN}✓ Redis 容器已在运行${NC}"
+    elif docker ps -a --format '{{.Names}}' | grep -q '^biyesheji-redis$'; then
+        echo -e "${YELLOW}启动 Redis 容器...${NC}"
+        docker start biyesheji-redis > /dev/null
+        echo -e "${GREEN}✓ Redis 容器已启动${NC}"
+    else
+        echo -e "${YELLOW}创建并启动 Redis 容器...${NC}"
+        cd "$PROJECT_DIR"
+        docker compose up -d redis > /dev/null
+        echo -e "${GREEN}✓ Redis 容器已启动${NC}"
+    fi
+
+    echo ""
+}
+
 # Start backend in background
 start_backend() {
     echo -e "${YELLOW}正在启动后端服务...${NC}"
@@ -41,6 +82,9 @@ start_frontend() {
 
 # Main execution
 main() {
+    # Ensure containers are running first
+    ensure_containers_running
+
     start_backend
     start_frontend
 
@@ -53,6 +97,11 @@ main() {
     echo -e "  ${YELLOW}前端:${NC} http://localhost:3000"
     echo -e "  ${YELLOW}后端 API:${NC} http://localhost:8080/api"
     echo -e "  ${YELLOW}健康检查:${NC} http://localhost:8080/api/health"
+    echo ""
+
+    echo -e "${BLUE}数据库信息:${NC}"
+    echo -e "  ${YELLOW}MySQL:${NC} localhost:3306 (root/root)"
+    echo -e "  ${YELLOW}Redis:${NC} localhost:6379"
     echo ""
 
     echo -e "${BLUE}日志查看:${NC}"

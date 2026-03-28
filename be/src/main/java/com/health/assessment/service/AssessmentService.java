@@ -67,15 +67,6 @@ public class AssessmentService {
     public Assessment evaluate(Long userId) {
         log.info("发起健康评测: userId={}", userId);
 
-        // 检查今天是否已评测
-        LocalDate today = LocalDate.now();
-        Assessment existing = assessmentMapper.selectByUserIdAndDate(userId, today);
-        if (existing != null) {
-            log.info("今天已有评测记录，返回最新结果: userId={}", userId);
-            // 已有记录，直接返回，无需清除缓存
-            return existing;
-        }
-
         // 获取用户信息
         User user = userMapper.selectById(userId);
         if (user == null) {

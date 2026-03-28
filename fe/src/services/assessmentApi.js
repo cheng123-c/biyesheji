@@ -4,9 +4,9 @@ import apiClient from './api'
  * 健康评测相关的 API 调用
  */
 
-// 发起健康评测
+// 发起健康评测（DeepSeek AI 分析，单独设置 60s 超时）
 export const startEvaluation = () => {
-  return apiClient.post('/v1/assessments/evaluate')
+  return apiClient.post('/v1/assessments/evaluate', null, { timeout: 60000 })
 }
 
 // 获取最新评测报告

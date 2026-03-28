@@ -170,6 +170,29 @@ public class QuestionnaireController {
         return ApiResponse.success("删除成功", "");
     }
 
+    /**
+     * 管理员切换问卷启用/禁用状态
+     */
+    @PutMapping("/admin/{id}/toggle-active")
+    @Operation(summary = "切换问卷状态（管理员）", description = "管理员启用或禁用问卷")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Questionnaire> adminToggleActive(@PathVariable Long id) {
+        return ApiResponse.success("状态已更新", questionnaireService.toggleActive(id));
+    }
+
+    /**
+     * 管理员分页查看所有用户的问卷回答记录
+     */
+    @GetMapping("/admin/responses")
+    @Operation(summary = "查看所有回答记录（管理员）", description = "管理员分页查看所有用户提交的问卷回答，可按问卷ID过滤")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<PageInfo<QuestionnaireResponse>> adminGetAllResponses(
+            @RequestParam(required = false) Long questionnaireId,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "15") int pageSize) {
+        return ApiResponse.success(questionnaireService.adminGetAllResponses(questionnaireId, pageNum, pageSize));
+    }
+
     // ==================== 私有方法 ====================
 
     private Long getUserId(HttpServletRequest request) {

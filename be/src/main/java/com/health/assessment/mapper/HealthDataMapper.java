@@ -58,21 +58,8 @@ public interface HealthDataMapper {
 
     /**
      * 根据用户ID和数据类型查询历史数据
+     * （定义在 HealthDataMapper.xml 中，使用 resultMap 映射字段）
      */
-    @Select("SELECT * FROM t_health_data WHERE user_id = #{userId} AND data_type = #{dataType} " +
-            "AND collected_at >= #{startTime} AND collected_at <= #{endTime} " +
-            "ORDER BY collected_at DESC")
-    @Results({
-            @Result(column = "id", property = "id", id = true),
-            @Result(column = "user_id", property = "userId"),
-            @Result(column = "data_type", property = "dataType"),
-            @Result(column = "data_value", property = "dataValue"),
-            @Result(column = "unit", property = "unit"),
-            @Result(column = "data_source", property = "dataSource"),
-            @Result(column = "device_id", property = "deviceId"),
-            @Result(column = "collected_at", property = "collectedAt"),
-            @Result(column = "created_at", property = "createdAt")
-    })
     List<HealthData> selectByUserIdAndType(@Param("userId") Long userId,
                                            @Param("dataType") String dataType,
                                            @Param("startTime") LocalDateTime startTime,
@@ -80,46 +67,25 @@ public interface HealthDataMapper {
 
     /**
      * 查询用户今天的特定类型数据
+     * （定义在 HealthDataMapper.xml 中，使用 resultMap 映射字段）
      */
-    @Select("SELECT * FROM t_health_data WHERE user_id = #{userId} AND data_type = #{dataType} " +
-            "AND DATE(collected_at) = #{date} " +
-            "ORDER BY collected_at DESC")
     List<HealthData> selectTodayData(@Param("userId") Long userId,
                                      @Param("dataType") String dataType,
                                      @Param("date") LocalDate date);
 
     /**
      * 查询用户指定时间范围内的所有健康数据
+     * （定义在 HealthDataMapper.xml 中，使用 resultMap 映射字段）
      */
-    @Select("SELECT * FROM t_health_data WHERE user_id = #{userId} " +
-            "AND collected_at >= #{startTime} AND collected_at <= #{endTime} " +
-            "ORDER BY collected_at DESC")
     List<HealthData> selectByUserIdAndTimeRange(@Param("userId") Long userId,
                                                 @Param("startTime") LocalDateTime startTime,
                                                 @Param("endTime") LocalDateTime endTime);
 
     /**
      * 查询所有数据类型的最新值（每种类型只取最新的一条）
-     * 使用外层别名 t1，避免子查询中与外层同名表的混淆
+     * （定义在 HealthDataMapper.xml 中，使用 resultMap 映射字段）
      */
-    @Select("SELECT t1.* FROM t_health_data t1 " +
-            "WHERE t1.user_id = #{userId} " +
-            "AND t1.collected_at = (" +
-            "SELECT MAX(t2.collected_at) FROM t_health_data t2 " +
-            "WHERE t2.user_id = #{userId} AND t2.data_type = t1.data_type" +
-            ")")
-    @Results({
-            @Result(column = "id", property = "id", id = true),
-            @Result(column = "user_id", property = "userId"),
-            @Result(column = "data_type", property = "dataType"),
-            @Result(column = "data_value", property = "dataValue"),
-            @Result(column = "unit", property = "unit"),
-            @Result(column = "data_source", property = "dataSource"),
-            @Result(column = "device_id", property = "deviceId"),
-            @Result(column = "collected_at", property = "collectedAt"),
-            @Result(column = "created_at", property = "createdAt")
-    })
-    List<HealthData> selectLatestAllTypes(Long userId);
+    List<HealthData> selectLatestAllTypes(@Param("userId") Long userId);
 
     /**
      * 新增健康数据
@@ -131,14 +97,8 @@ public interface HealthDataMapper {
 
     /**
      * 批量插入健康数据
+     * （定义在 HealthDataMapper.xml 中）
      */
-    @Insert("<script>" +
-            "INSERT INTO t_health_data(user_id, data_type, data_value, unit, data_source, device_id, collected_at) " +
-            "VALUES " +
-            "<foreach collection='list' item='item' separator=','>" +
-            "(#{item.userId}, #{item.dataType}, #{item.dataValue}, #{item.unit}, #{item.dataSource}, #{item.deviceId}, #{item.collectedAt})" +
-            "</foreach>" +
-            "</script>")
     int batchInsert(List<HealthData> healthDataList);
 
     /**
@@ -157,8 +117,8 @@ public interface HealthDataMapper {
 
     /**
      * 删除用户指定日期之前的健康数据（数据归档）
+     * （定义在 HealthDataMapper.xml 中）
      */
-    @Delete("DELETE FROM t_health_data WHERE user_id = #{userId} AND collected_at < #{beforeDate}")
     int deleteBeforeDate(@Param("userId") Long userId, @Param("beforeDate") LocalDateTime beforeDate);
 
     /**
@@ -169,13 +129,9 @@ public interface HealthDataMapper {
 
     /**
      * 查询用户的数据统计信息
+     * （定义在 HealthDataMapper.xml 中，使用 resultMap 映射字段）
      */
-    @Select("SELECT data_type, COUNT(*) as count, " +
-            "MIN(data_value) as min_value, MAX(data_value) as max_value, " +
-            "AVG(data_value) as avg_value " +
-            "FROM t_health_data WHERE user_id = #{userId} " +
-            "GROUP BY data_type")
-    List<HealthDataStatistics> getStatistics(Long userId);
+    List<HealthDataStatistics> getStatistics(@Param("userId") Long userId);
 
     /**
      * 健康数据统计对象（用于结果映射）
